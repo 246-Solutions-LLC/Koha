@@ -29455,7 +29455,7 @@ if ( CheckVersion($DBversion) ) {
     NewVersion( $DBversion, 28108, "Add new systempreference OpacHiddenItemsHidesRecord" );
 }
 
-$DBversion = '20.12.00.051';
+$DBversion = '25.06.00.003';
 if ( C4::Context->preference("Version") < TransformToNum($DBversion) ) {
     $dbh->do(
         "CREATE TABLE `reports_branches` (
