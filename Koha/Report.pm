@@ -22,7 +22,7 @@ use Koha::Reports;
 
 #use Koha::DateUtils qw( dt_from_string output_pref );
 
-use base qw(Koha::Object);
+use base qw(Koha::Object Koha::Object::Limit::Library);
 #
 # FIXME We could only return an error code instead of the arrayref
 # Only 1 error is returned
@@ -256,6 +256,20 @@ sub _might_add_limit {
         $sql .= " LIMIT " . C4::Context->preference('ReportsExportLimit');
     }
     return $sql;
+}
+
+=head3 _library_limits
+
+Configurable library limits
+
+=cut
+
+sub _library_limits {
+    return {
+        class   => "ReportsBranch",
+        id      => "report_id",
+        library => "branchcode",
+    };
 }
 
 =head3 _type
