@@ -33,6 +33,33 @@ Koha::Reports - Koha Report Object set class
 
 =cut
 
+=head3 search_with_localization
+
+my $itemtypes = Koha::ItemTypes->search_with_localization
+
+=cut
+
+sub search_with_localization {
+    my ( $self, $params, $attributes ) = @_;
+
+    my $language = C4::Languages::getlanguage();
+    $Koha::Schema::Result::Itemtype::LANGUAGE = $language;
+    $attributes->{order_by}                   = 'translated_description' unless exists $attributes->{order_by};
+    $attributes->{join}                       = 'localization';
+    $attributes->{'+select'}                  = [
+        {
+            coalesce => [qw( localization.translation me.description )],
+            -as      => 'translated_description'
+        }
+    ];
+    if ( defined $params->{branchcode} ) {
+        my $branchcode = delete $params->{branchcode};
+        $self->search_with_library_limits( $params, $attributes, $branchcode );
+    } else {
+        $self->SUPER::search( $params, $attributes );
+    }
+}
+
 =head3 _type
 
 Returns name of corresponding DBIC resultset

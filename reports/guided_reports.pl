@@ -56,7 +56,8 @@ Script to control the guided report creation
 my $input    = CGI->new;
 my $usecache = Koha::Caches->get_instance->memcached_cache;
 
-my $op = $input->param('op') // '';
+my $op       = $input->param('op') // '';
+my @branches = grep { $_ ne q{} } $input->multi_param('branches');
 my $flagsrequired;
 if (   ( $op eq 'add_form' )
     || ( $op eq 'add_form_sql' )
@@ -135,11 +136,29 @@ if ( !$op ) {
     );
 
 } elsif ( $op eq 'edit_form' ) {
-    my $id       = $input->param('id');
-    my $report   = Koha::Reports->find($id);
-    my $group    = $report->report_group;
-    my $subgroup = $report->report_subgroup;
-    my $tables   = get_tables();
+    my $id                = $input->param('id');
+    my $report            = Koha::Reports->find($id);
+    my $group             = $report->report_group;
+    my $subgroup          = $report->report_subgroup;
+    my $tables            = get_tables();
+    my $selected_branches = $report ? $report->get_library_limits : undef;
+    my $branches =
+        Koha::Libraries->search( {}, { order_by => ['branchname'] } )->unblessed;
+    my @branches_loop;
+
+    foreach my $branch (@$branches) {
+        my $selected =
+            ( $selected_branches && grep { $_->branchcode eq $branch->{branchcode} } @{ $selected_branches->as_list } )
+            ? 1
+            : 0;
+        push @branches_loop,
+            {
+            branchcode => $branch->{branchcode},
+            branchname => $branch->{branchname},
+            selected   => $selected,
+            };
+    }
+
     $template->param(
         'sql'                   => $report->savedsql,
         'reportname'            => $report->report_name,
@@ -152,7 +171,8 @@ if ( !$op ) {
         'editsql'               => 1,
         'mana_id'               => $report->{mana_id},
         'mana_comments'         => $report->{comments},
-        'tables'                => $tables
+        'tables'                => $tables,
+        'branches_loop'         => \@branches_loop
     );
 
 } elsif ( $op eq 'cud-update_sql' || $op eq 'cud-update_and_run_sql' ) {
