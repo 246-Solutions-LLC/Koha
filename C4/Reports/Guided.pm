@@ -819,6 +819,7 @@ sub get_saved_reports_base_query {
 SELECT s.*, $area_name_sql_snippet, av_g.lib AS groupname, av_sg.lib AS subgroupname,
 b.firstname AS borrowerfirstname, b.surname AS borrowersurname
 FROM saved_sql s
+INNER JOIN reports_branches rb ON s.id = rb.report_id
 LEFT JOIN saved_reports r ON r.report_id = s.id
 LEFT OUTER JOIN authorised_values av_g ON (av_g.category = 'REPORT_GROUP' AND av_g.authorised_value = s.report_group)
 LEFT OUTER JOIN authorised_values av_sg ON (av_sg.category = 'REPORT_SUBGROUP' AND av_sg.lib_opac = s.report_group AND av_sg.authorised_value = s.report_subgroup)
@@ -873,11 +874,17 @@ sub get_saved_reports {
             push @cond, "report_subgroup = ?";
             push @args, $filter->{subgroup};
         }
+        if ( $filter->{branchcode} ) {
+            push @cond, "rb.branchcode = ?";
+            push @args, $filter->{branchcode};
+        }
     }
     $query .= " WHERE " . join( " AND ", map "($_)", @cond ) if @cond;
     $query .=
         " GROUP BY s.id, s.borrowernumber, s.date_created, s.last_modified, s.savedsql, s.last_run, s.report_name, s.type, s.notes, s.cache_expiry, s.public, s.report_area, s.report_group, s.report_subgroup, s.mana_id, av_g.lib, av_sg.lib, b.firstname, b.surname";
     $query .= " ORDER by date_created";
+
+    say STDERR $query;
 
     my $result = $dbh->selectall_arrayref( $query, { Slice => {} }, @args );
 

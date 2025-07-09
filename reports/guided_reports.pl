@@ -85,6 +85,10 @@ my $session    = $session_id ? get_session($session_id) : undef;
 
 $template->param( templates => Koha::Notice::Templates->search( { module => 'report' } ) );
 
+#my $report_module = Koha::Reports->new();
+#my $cool_filtered_reports = $report_module->search_with_library_limits({}, {}, 'FFL');
+#$template->param( templates => $cool_filtered_reports);
+
 my $filter;
 if ( $input->param("filter_set") or $input->param('clear_filters') ) {
     $filter = {};
@@ -1079,10 +1083,12 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     # get list of reports and display them
     my $group    = $input->param('group');
     my $subgroup = $input->param('subgroup');
-    $filter->{group}    = $group;
-    $filter->{subgroup} = $subgroup;
+    $filter->{group}      = $group;
+    $filter->{subgroup}   = $subgroup;
+    $filter->{branchcode} = 'FFL';
     my $reports = get_saved_reports($filter);
     my $has_obsolete_reports;
+
     for my $report (@$reports) {
         $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
         if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
