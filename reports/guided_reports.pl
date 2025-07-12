@@ -42,6 +42,7 @@ use Koha::Notice::Templates;
 use Koha::TemplateUtils qw( process_tt );
 use C4::ClassSource     qw( GetClassSources );
 use C4::Scrubber;
+use Data::Dumper;
 
 =head1 NAME
 
@@ -56,8 +57,9 @@ Script to control the guided report creation
 my $input    = CGI->new;
 my $usecache = Koha::Caches->get_instance->memcached_cache;
 
-my $op       = $input->param('op') // '';
-my @branches = grep { $_ ne q{} } $input->multi_param('branches');
+my $op = $input->param('op') // '';
+
+# my @branches = grep { $_ ne q{} } $input->multi_param('branches');
 my $flagsrequired;
 if (   ( $op eq 'add_form' )
     || ( $op eq 'add_form_sql' )
@@ -172,6 +174,22 @@ if ( !$op ) {
             };
     }
 
+    # my $selected_branches = $report ? $report->get_library_limits : undef;
+    # my $branches          = Koha::Libraries->search( {}, { order_by => ['branchname'] } )->unblessed;
+    # my @branches_loop;
+    # foreach my $branch (@$branches) {
+    #     my $selected =
+    #         ( $selected_branches && grep { $_->branchcode eq $branch->{branchcode} } @{ $selected_branches->as_list } )
+    #         ? 1
+    #         : 0;
+    #     push @branches_loop,
+    #         {
+    #         branchcode => $branch->{branchcode},
+    #         branchname => $branch->{branchname},
+    #         selected   => $selected,
+    #         };
+    # }
+
     $template->param(
         'sql'                   => $report->savedsql,
         'reportname'            => $report->report_name,
@@ -185,11 +203,14 @@ if ( !$op ) {
         'mana_id'               => $report->{mana_id},
         'mana_comments'         => $report->{comments},
         'tables'                => $tables,
-        'branches_loop'         => \@branches_loop
+
+        # 'branches'              => $report->get_library_limits ? $report->get_library_limits->as_list : [],
+        'branches_loop' => \@branches_loop
     );
 
 } elsif ( $op eq 'cud-update_sql' || $op eq 'cud-update_and_run_sql' ) {
     my $id                 = $input->param('id');
+    my $report             = Koha::Reports->find($id);
     my $sql                = $input->param('sql');
     my $reportname         = $input->param('reportname');
     my $group              = $input->param('group');
@@ -200,9 +221,20 @@ if ( !$op ) {
     my $public             = $input->param('public');
     my $save_anyway        = $input->param('save_anyway');
     my @errors;
-    my $tables = get_tables();
+    my $tables   = get_tables();
+    my @branches = grep { $_ ne q{} } $input->multi_param('branches');
 
+    # use Data::Dumper;
+    # warn Dumper(\@branches);
+    # warn "hey";
+    # warn "DEBUG branches: " . Dumper(\@branches);
+    # print STDERR "DEBUG branches: " . join(", ", @branches);
+    # my $libraries = $report->get_library_limits;
+    # my $stuff = $libraries ? $libraries->as_list : [];
+    # print STDERR "DEBUG stuff: " . Dumper(@branches);
     # if we have the units, then we came from creating a report from SQL and thus need to handle converting units
+    # $report->store;
+    # $report->replace_library_limits( \@branches );
     if ($cache_expiry_units) {
         if ( $cache_expiry_units eq "minutes" ) {
             $cache_expiry *= 60;
@@ -248,6 +280,7 @@ if ( !$op ) {
                 'problematic_authvals' => $problematic_authvals,
                 'warn_authval_problem' => 1,
                 'phase_update'         => 1,
+                'branches'             => @branches,
             );
 
         } else {
@@ -266,6 +299,9 @@ if ( !$op ) {
                 }
             );
 
+            $report->store;
+            $report->replace_library_limits( \@branches );
+
             my $editsql = 1;
             if ( $op eq 'cud-update_and_run_sql' ) {
                 $editsql = 0;
@@ -282,7 +318,8 @@ if ( !$op ) {
                 'cache_expiry'          => $cache_expiry,
                 'public'                => $public,
                 'usecache'              => $usecache,
-                'tables'                => $tables
+                'tables'                => $tables,
+                'branches'              => @branches,
             );
             logaction( "REPORTS", "MODIFY", $id, "$reportname | $sql" ) if C4::Context->preference("ReportsLog");
         }
