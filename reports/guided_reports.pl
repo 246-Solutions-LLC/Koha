@@ -90,6 +90,19 @@ $template->param( templates => Koha::Notice::Templates->search( { module => 'rep
 #my $cool_filtered_reports = $report_module->search_with_library_limits({}, {}, 'FFL');
 #$template->param( templates => $cool_filtered_reports);
 
+my $branches =
+    Koha::Libraries->search( {}, { order_by => ['branchname'] } )->unblessed;
+my @branches_loop;
+foreach my $branch (@$branches) {
+    push @branches_loop,
+        {
+        branchcode => $branch->{branchcode},
+        branchname => $branch->{branchname}
+        };
+}
+
+$template->param( 'branches_loop', \@branches_loop );
+
 my $filter;
 if ( $input->param("filter_set") or $input->param('clear_filters') ) {
     $filter = {};

@@ -1553,7 +1553,22 @@
                                 <legend>Library limitation:</legend>
                                 <div
                                 ><label for="library_limitation">Library limitation: </label>
-                                    <select id="library_limitation" name="branches" multiple size="10">
+                                    [% IF branches_loop.size %]
+                                        <span class="label">&nbsp;</span>
+                                        <div>
+                                            <select id="library_limitation" name="branches" multiple size="10">
+                                                <option value="">(no library)</option>
+                                                [% FOREACH branch IN branches_loop %]
+                                                    [% IF ( basketbranchcode == branch.branchcode ) %]
+                                                        <option selected="selected" value="[% branch.branchcode | html %]"> [% branch.branchname | html %]</option>
+                                                    [% ELSE %]
+                                                        <option value="[% branch.branchcode | html %]"> [% branch.branchname | html %]</option>
+                                                    [% END %]
+                                                [% END %]
+                                            </select>
+                                        </div>
+                                            <!-- #/managing_library_entry -->
+                                    [% END # /IF branches_loop.size %]
                                         [% PROCESS options_for_libraries libraries => Branches.all( selected => savedreport.savedsql.get_library_limits, unfiltered => 1, do_not_select_my_library => 1 ) %]
                                     </select>
                                     <div class="hint">Limits the use of this report to the selected libraries.</div>
