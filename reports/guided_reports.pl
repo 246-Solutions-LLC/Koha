@@ -88,23 +88,6 @@ my $session    = $session_id ? get_session($session_id) : undef;
 
 $template->param( templates => Koha::Notice::Templates->search( { module => 'report' } ) );
 
-#my $report_module = Koha::Reports->new();
-#my $cool_filtered_reports = $report_module->search_with_library_limits({}, {}, 'FFL');
-#$template->param( templates => $cool_filtered_reports);
-
-my $branches =
-    Koha::Libraries->search( {}, { order_by => ['branchname'] } )->unblessed;
-my @branches_loop;
-foreach my $branch (@$branches) {
-    push @branches_loop,
-        {
-        branchcode => $branch->{branchcode},
-        branchname => $branch->{branchname}
-        };
-}
-
-$template->param( 'branches_loop', \@branches_loop );
-
 my $filter;
 if ( $input->param("filter_set") or $input->param('clear_filters') ) {
     $filter = {};
@@ -151,44 +134,11 @@ if ( !$op ) {
     );
 
 } elsif ( $op eq 'edit_form' ) {
-    my $id                = $input->param('id');
-    my $report            = Koha::Reports->find($id);
-    my $group             = $report->report_group;
-    my $subgroup          = $report->report_subgroup;
-    my $tables            = get_tables();
-    my $selected_branches = $report ? $report->get_library_limits : undef;
-    my $branches =
-        Koha::Libraries->search( {}, { order_by => ['branchname'] } )->unblessed;
-    my @branches_loop;
-
-    foreach my $branch (@$branches) {
-        my $selected =
-            ( $selected_branches && grep { $_->branchcode eq $branch->{branchcode} } @{ $selected_branches->as_list } )
-            ? 1
-            : 0;
-        push @branches_loop,
-            {
-            branchcode => $branch->{branchcode},
-            branchname => $branch->{branchname},
-            selected   => $selected,
-            };
-    }
-
-    # my $selected_branches = $report ? $report->get_library_limits : undef;
-    # my $branches          = Koha::Libraries->search( {}, { order_by => ['branchname'] } )->unblessed;
-    # my @branches_loop;
-    # foreach my $branch (@$branches) {
-    #     my $selected =
-    #         ( $selected_branches && grep { $_->branchcode eq $branch->{branchcode} } @{ $selected_branches->as_list } )
-    #         ? 1
-    #         : 0;
-    #     push @branches_loop,
-    #         {
-    #         branchcode => $branch->{branchcode},
-    #         branchname => $branch->{branchname},
-    #         selected   => $selected,
-    #         };
-    # }
+    my $id       = $input->param('id');
+    my $report   = Koha::Reports->find($id);
+    my $group    = $report->report_group;
+    my $subgroup = $report->report_subgroup;
+    my $tables   = get_tables();
 
     $template->param(
         'sql'                   => $report->savedsql,
@@ -203,9 +153,7 @@ if ( !$op ) {
         'mana_id'               => $report->{mana_id},
         'mana_comments'         => $report->{comments},
         'tables'                => $tables,
-
-        # 'branches'              => $report->get_library_limits ? $report->get_library_limits->as_list : [],
-        'branches_loop' => \@branches_loop
+        'report'                => $report,
     );
 
 } elsif ( $op eq 'cud-update_sql' || $op eq 'cud-update_and_run_sql' ) {
@@ -280,7 +228,9 @@ if ( !$op ) {
                 'problematic_authvals' => $problematic_authvals,
                 'warn_authval_problem' => 1,
                 'phase_update'         => 1,
-                'branches'             => @branches,
+
+                # 'branches'             => @branches,
+                'report' => $report,
             );
 
         } else {
