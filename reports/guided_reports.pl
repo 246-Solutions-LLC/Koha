@@ -1122,7 +1122,7 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     my $subgroup = $input->param('subgroup');
     $filter->{group}      = $group;
     $filter->{subgroup}   = $subgroup;
-    $filter->{branchcode} = 'FFL';
+    $filter->{branchcode} = C4::Context::mybranch();
     my $reports = get_saved_reports($filter);
     my $has_obsolete_reports;
 
