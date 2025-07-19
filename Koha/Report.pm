@@ -20,9 +20,13 @@ use Modern::Perl;
 use Koha::Database;
 use Koha::Reports;
 
-#use Koha::DateUtils qw( dt_from_string output_pref );
+use Koha::Object;
+use Koha::Object::Limit::Library;
 
 use base qw(Koha::Object Koha::Object::Limit::Library);
+
+#use Koha::DateUtils qw( dt_from_string output_pref );
+
 #
 # FIXME We could only return an error code instead of the arrayref
 # Only 1 error is returned
@@ -258,6 +262,16 @@ sub _might_add_limit {
     return $sql;
 }
 
+=head3 _type
+
+Returns name of corresponding DBIC resultset
+
+=cut
+
+sub _type {
+    return 'SavedSql';
+}
+
 =head3 _library_limits
 
 Configurable library limits
@@ -270,16 +284,6 @@ sub _library_limits {
         id      => "report_id",
         library => "branchcode",
     };
-}
-
-=head3 _type
-
-Returns name of corresponding DBIC resultset
-
-=cut
-
-sub _type {
-    return 'SavedSql';
 }
 
 1;
