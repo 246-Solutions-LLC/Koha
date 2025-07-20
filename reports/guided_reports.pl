@@ -1120,28 +1120,53 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     # get list of reports and display them
     my $group    = $input->param('group');
     my $subgroup = $input->param('subgroup');
-    $filter->{group}      = $group;
-    $filter->{subgroup}   = $subgroup;
-    $filter->{branchcode} = C4::Context::mybranch();
-    my $reports = get_saved_reports($filter);
-    my $has_obsolete_reports;
+    $filter->{group}    = $group;
+    $filter->{subgroup} = $subgroup;
 
-    for my $report (@$reports) {
-        $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
-        if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
-            $report->{seems_obsolete} = 1;
-            $has_obsolete_reports++;
+    my $pref_enable_filtering_reports = C4::Context->preference("EnableFilteringReports");
+    if ( $pref_enable_filtering_reports == "1" ) {
+        my $reports_with_library_limits_results =
+            Koha::Reports->search_with_library_limits( {}, {}, C4::Context::mybranch() );
+        my $reports_list = $reports_with_library_limits_results->unblessed;
+        my $has_obsolete_reports;
+        while ( my $report = $reports_with_library_limits_results->next ) {
+            $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
+            if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
+                $report->{seems_obsolete} = 1;
+                $has_obsolete_reports++;
+            }
+            $template->param(
+                'manamsg'               => $input->param('manamsg') || '',
+                'saved1'                => 1,
+                'savedreports'          => $reports_list,
+                'usecache'              => $usecache,
+                'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
+                filters                 => $filter,
+                has_obsolete_reports    => $has_obsolete_reports,
+            );
         }
+    } else {
+
+        my $reports = get_saved_reports($filter);
+        my $has_obsolete_reports;
+
+        for my $report (@$reports) {
+            $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
+            if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
+                $report->{seems_obsolete} = 1;
+                $has_obsolete_reports++;
+            }
+        }
+        $template->param(
+            'manamsg'               => $input->param('manamsg') || '',
+            'saved1'                => 1,
+            'savedreports'          => $reports,
+            'usecache'              => $usecache,
+            'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
+            filters                 => $filter,
+            has_obsolete_reports    => $has_obsolete_reports,
+        );
     }
-    $template->param(
-        'manamsg'               => $input->param('manamsg') || '',
-        'saved1'                => 1,
-        'savedreports'          => $reports,
-        'usecache'              => $usecache,
-        'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
-        filters                 => $filter,
-        has_obsolete_reports    => $has_obsolete_reports,
-    );
 }
 
 # pass $sth, get back an array of names for the column headers
