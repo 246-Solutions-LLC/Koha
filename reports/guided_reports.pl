@@ -173,17 +173,6 @@ if ( !$op ) {
     my $tables   = get_tables();
     my @branches = grep { $_ ne q{} } $input->multi_param('branches');
 
-    # use Data::Dumper;
-    # warn Dumper(\@branches);
-    # warn "hey";
-    # warn "DEBUG branches: " . Dumper(\@branches);
-    # print STDERR "DEBUG branches: " . join(", ", @branches);
-    # my $libraries = $report->get_library_limits;
-    # my $stuff = $libraries ? $libraries->as_list : [];
-    # print STDERR "DEBUG stuff: " . Dumper(@branches);
-    # if we have the units, then we came from creating a report from SQL and thus need to handle converting units
-    # $report->store;
-    # $report->replace_library_limits( \@branches );
     if ($cache_expiry_units) {
         if ( $cache_expiry_units eq "minutes" ) {
             $cache_expiry *= 60;
