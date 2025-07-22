@@ -267,7 +267,10 @@ LINE: while ( my $borrowerline = <$handle> ) {
 
         # Remove warning for int datatype that cannot be null
         # Argument "" isn't numeric in numeric eq (==) at /usr/share/perl5/DBIx/Class/Row.pm line 1018
-        for my $field (qw( privacy privacy_guarantor_fines privacy_guarantor_checkouts anonymized login_attempts )) {
+        for my $field (
+            qw( privacy privacy_guarantor_fines privacy_guarantor_checkouts anonymized login_attempts checkprevcheckout autorenew_checkouts )
+            )
+        {
             delete $borrower{$field}
                 if exists $borrower{$field} and $borrower{$field} eq "";
         }
@@ -304,7 +307,8 @@ LINE: while ( my $borrowerline = <$handle> ) {
                 next if $col eq 'password'   && !$overwrite_passwords;
                 next if $col eq 'dateexpiry' && $update_dateexpiry;
 
-                $borrower{$col} = $member->{$col} if $col eq 'dateexpiry' && !$columns[ $csvkeycol{$col} ];
+                $borrower{$col} = $member->{$col}
+                    if $col eq 'dateexpiry' && ( !$csvkeycol{$col} || !$columns[ $csvkeycol{$col} ] );
 
                 unless ( exists( $csvkeycol{$col} ) || $defaults->{$col} ) {
                     $borrower{$col} = $member->{$col} if ( $member->{$col} );

@@ -117,7 +117,7 @@ if ($backends_available) {
         $template->param(
             notices => $notices,
             request => $request,
-            ( $params->{tran_error}   ? ( tran_error   => $params->{tran_error} )   : () ),
+            ( $params->{tran_fail}    ? ( tran_fail    => $params->{tran_fail} )    : () ),
             ( $params->{tran_success} ? ( tran_success => $params->{tran_success} ) : () ),
         );
 
@@ -478,7 +478,7 @@ if ($backends_available) {
             $append .= '&tran_success=' . join( ',', @{ $ret->{result}->{success} } );
         }
         if ( $ret->{result} && scalar @{ $ret->{result}->{fail} } > 0 ) {
-            $append .= '&tran_fail=' . join( ',', @{ $ret->{result}->{fail} } . join(',') );
+            $append .= '&tran_fail=' . join( ',', @{ $ret->{result}->{fail} } );
         }
 
         # Redirect to view the whole request

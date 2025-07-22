@@ -22,7 +22,7 @@
     </div> <!-- / #wrapper in masthead.inc -->
     <!-- prettier-ignore-end -->
 
-    [% IF ( Koha.Preference('OPACReportProblem') && Koha.Preference('KohaAdminEmailAddress') ) || Koha.Preference( 'CookieConsent' ) || OpacKohaUrl || ( ( OpacLangSelectorMode == 'both' || OpacLangSelectorMode == 'footer') ) %]
+    [% IF ( Koha.Preference('OPACReportProblem') && Koha.Preference('KohaAdminEmailAddress') ) || Koha.Preference( 'CookieConsent' ) || OpacKohaUrl || ( ( opaclanguagesdisplay ) && ( ! one_language_enabled ) && ( languages_loop ) && ( OpacLangSelectorMode == 'both' || OpacLangSelectorMode == 'footer') ) %]
         <footer id="changelanguage" class="navbar navbar-expand navbar-light bg-light noprint">
             <div class="container-fluid">
                 <div class="collapse navbar-collapse">
@@ -49,7 +49,7 @@
                     </div>
                     [% IF OpacKohaUrl %]
                         <div class="navbar-nav">
-                            <a id="koha_url" class="nav-link koha_url" href="http://koha-community.org">
+                            <a id="koha_url" class="nav-link koha_url" href="https://koha-community.org">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
                                     <path
                                         fill="currentColor"

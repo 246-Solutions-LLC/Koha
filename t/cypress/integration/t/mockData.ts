@@ -20,6 +20,16 @@ describe("Generate Random Patron", () => {
             );
         });
     });
+
+    it("should not overwrite _id if passed", () => {
+        const home_library_id = "LIB4TEST";
+        cy.task("buildSampleObject", {
+            object: "item",
+            values: { home_library_id },
+        }).then(mockItem => {
+            expect(mockItem.home_library_id).to.equal(home_library_id);
+        });
+    });
 });
 
 describe("Generate Random Patrons", () => {
@@ -72,6 +82,16 @@ describe("Generate objects", () => {
             expect(mockItem.item_type_id).to.equal(
                 mockItem.item_type.item_type_id
             );
+        });
+    });
+
+    it("should not overwrite _id if passed", () => {
+        const home_library_id = "LIB4TEST";
+        cy.task("buildSampleObject", {
+            object: "item",
+            values: { home_library_id },
+        }).then(mockItem => {
+            expect(mockItem.home_library_id).to.equal(home_library_id);
         });
     });
 });
