@@ -42,7 +42,6 @@ use Koha::Notice::Templates;
 use Koha::TemplateUtils qw( process_tt );
 use C4::ClassSource     qw( GetClassSources );
 use C4::Scrubber;
-use Data::Dumper;
 
 =head1 NAME
 
@@ -58,9 +57,7 @@ my $input    = CGI->new;
 my $usecache = Koha::Caches->get_instance->memcached_cache;
 
 my $op = $input->param('op') // '';
-print STDERR "DEBUG op: $op\n";
 
-# my @branches = grep { $_ ne q{} } $input->multi_param('branches');
 my $flagsrequired;
 if (   ( $op eq 'add_form' )
     || ( $op eq 'add_form_sql' )
@@ -169,9 +166,9 @@ if ( !$op ) {
     my $cache_expiry_units = $input->param('cache_expiry_units');
     my $public             = $input->param('public');
     my $save_anyway        = $input->param('save_anyway');
+    my $tables             = get_tables();
+    my @branches           = grep { $_ ne q{} } $input->multi_param('branches');
     my @errors;
-    my $tables   = get_tables();
-    my @branches = grep { $_ ne q{} } $input->multi_param('branches');
 
     if ($cache_expiry_units) {
         if ( $cache_expiry_units eq "minutes" ) {
@@ -235,8 +232,6 @@ if ( !$op ) {
                     notes        => $notes,
                     public       => $public,
                     cache_expiry => $cache_expiry,
-
-                    # report       => $report,
                 }
             );
 
@@ -260,9 +255,7 @@ if ( !$op ) {
                 'public'                => $public,
                 'usecache'              => $usecache,
                 'tables'                => $tables,
-
-                # 'branches'              => @branches,
-                'report' => $report,
+                'report'                => $report,
             );
             logaction( "REPORTS", "MODIFY", $id, "$reportname | $sql" ) if C4::Context->preference("ReportsLog");
         }
@@ -506,7 +499,6 @@ if ( !$op ) {
     my $area = $input->param('area');
     my $sql  = $input->param('sql');
     my $type = $input->param('type');
-
     $template->param(
         'save'                  => 1,
         'area'                  => $area,
@@ -777,7 +769,6 @@ if ( !$op ) {
         $reportname = $input->param('reportname') // '';
         $notes      = $input->param('notes')      // '';
         @branches   = grep { $_ ne q{} } $input->multi_param('branches');
-
     } elsif ( my $report_id = $input->param('id') ) {
         $report     = Koha::Reports->find($report_id);
         $group      = $report->report_group;
@@ -801,9 +792,7 @@ if ( !$op ) {
         'cache_expiry'          => 300,
         'usecache'              => $usecache,
         'tables'                => $tables,
-
-        # 'branches'              => \@branches,
-        'report' => $report,
+        'report'                => $report,
 
     );
 }

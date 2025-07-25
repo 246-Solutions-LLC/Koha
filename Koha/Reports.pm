@@ -35,8 +35,6 @@ Koha::Reports - Koha Report Object set class
 
 =head3 search_with_localization
 
-my $itemtypes = Koha::ItemTypes->search_with_localization
-
 =cut
 
 sub search_with_localization {
