@@ -1,5 +1,4 @@
 use utf8;
-
 package Koha::Schema::Result::ReportsBranch;
 
 # Created by DBIx::Class::Schema::Loader
@@ -7,7 +6,7 @@ package Koha::Schema::Result::ReportsBranch;
 
 =head1 NAME
 
-Koha::Schema::Result::ReportsBranch
+Koha::Schema::Result::ItemtypesBranch
 
 =cut
 
@@ -16,7 +15,7 @@ use warnings;
 
 use base 'DBIx::Class::Core';
 
-=head1 TABLE: C<reports_branches>
+=head1 TABLE: C<itemtypes_branches>
 
 =cut
 
@@ -26,9 +25,10 @@ __PACKAGE__->table("reports_branches");
 
 =head2 report_id
 
-  data_type: 'integer'
+  data_type: 'varchar'
   is_foreign_key: 1
-  is_nullable: 0
+  is_nullable: 1
+  size: 80
 
 =head2 branchcode
 
@@ -40,10 +40,10 @@ __PACKAGE__->table("reports_branches");
 =cut
 
 __PACKAGE__->add_columns(
-    "report_id",
-    { data_type => "integer", is_foreign_key => 1, is_nullable => 0 },
-    "branchcode",
-    { data_type => "varchar", is_foreign_key => 1, is_nullable => 0, size => 10 },
+  "report_id",
+  { data_type => "varchar", is_foreign_key => 1, is_nullable => 1, size => 80 },
+  "branchcode",
+  { data_type => "varchar", is_foreign_key => 1, is_nullable => 0, size => 10 },
 );
 
 =head1 RELATIONS
@@ -57,29 +57,31 @@ Related object: L<Koha::Schema::Result::Branch>
 =cut
 
 __PACKAGE__->belongs_to(
-    "branchcode",
-    "Koha::Schema::Result::Branch",
-    { branchcode    => "branchcode" },
-    { is_deferrable => 1, on_delete => "CASCADE", on_update => "RESTRICT" },
+  "branchcode",
+  "Koha::Schema::Result::Branch",
+  { branchcode => "branchcode" },
+  { is_deferrable => 1, on_delete => "CASCADE", on_update => "RESTRICT" },
 );
 
-=head2 report
+=head2 itemtype
 
 Type: belongs_to
 
-Related object: L<Koha::Schema::Result::SavedSql>
+Related object: L<Koha::Schema::Result::Itemtype>
 
 =cut
 
 __PACKAGE__->belongs_to(
-    "report",
-    "Koha::Schema::Result::SavedSql",
-    { id            => "report_id" },
-    { is_deferrable => 1, on_delete => "CASCADE", on_update => "RESTRICT" },
+  "report_id",
+  "Koha::Schema::Result::Report",
+  { report_id => "report_id" },
+  { is_deferrable => 1, on_delete => "CASCADE", on_update => "RESTRICT" },
 );
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2025-07-06 17:02:11
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:SJqUxMgLJHAjbX3GJlpB+A
+
+# Created by DBIx::Class::Schema::Loader v0.07048 @ 2019-07-04 04:56:48
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:cBTswjKV8VWN1iueB+PygQ
+
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;
