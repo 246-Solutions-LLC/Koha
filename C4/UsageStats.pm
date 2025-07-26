@@ -317,6 +317,7 @@ sub _shared_preferences {
         autoMemberNum
         BorrowerRenewalPeriodBase
         EnableBorrowerFiles
+        LimitReportsByBranch
         EnhancedMessagingPreferences
         ExtendedPatronAttributes
         intranetreadinghistory

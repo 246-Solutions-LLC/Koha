@@ -21,7 +21,7 @@ use Koha::Database;
 
 use Koha::Report;
 
-use base qw(Koha::Objects);
+use base qw(Koha::Objects Koha::Objects::Limit::Library);
 
 =head1 NAME
 
@@ -30,12 +30,6 @@ Koha::Reports - Koha Report Object set class
 =head1 API
 
 =head2 Class Methods
-
-=cut
-
-=head3 _type
-
-Returns name of corresponding DBIC resultset
 
 =cut
 
