@@ -21,7 +21,7 @@ use Koha::Database;
 
 use Koha::Report;
 
-use base qw(Koha::Objects);
+use base qw(Koha::Objects Koha::Objects::Limit::Library);
 
 =head1 NAME
 
