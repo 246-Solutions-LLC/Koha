@@ -11,6 +11,22 @@
             </ul>
         </div>
     [% END %]
+    [% IF (op == "list") && Koha.Preference('EnableFilteringReports') %]
+        [% IF ( CAN_user_superlibrarian || CAN_user_reports_manage_report_filters ) %]
+            <div class="btn-group">
+                <form method="get" action="">
+                    <input type="hidden" name="op" value="list" />
+                    [% IF show_all %]
+                        <!-- If show_all is set, submit without show_all to clear the param -->
+                        <button type="submit" class="btn btn-default"><i class="fa fa-eye-slash"></i> Show my reports only</button>
+                    [% ELSE %]
+                        <input type="hidden" name="show_all" value="1" />
+                        <button type="submit" class="btn btn-default"><i class="fa fa-eye"></i> Show all reports</button>
+                    [% END %]
+                </form>
+            </div>
+        [% END %]
+    [% END %]
 
     [% IF ( showsql || execute || editsql || save_successful ) %]
         [% IF ( CAN_user_reports_delete_reports && !CAN_user_reports_create_reports ) %]

@@ -200,7 +200,7 @@
             <main>
                 [% INCLUDE 'messages.inc' %]
 
-                [% INCLUDE "reports-toolbar.inc" %]
+                [% INCLUDE 'reports-toolbar.inc' %]
 
                 [% IF ( start ) %]
                     <h1>Guided reports</h1>
@@ -235,16 +235,6 @@
 
                 [% IF ( saved1 ) %]
                     <h1>Saved reports</h1>
-                    [% IF ( CAN_user_superlibrarian || CAN_user_reports_manage_report_filters ) %]
-                        <form method="get" action="">
-                            <input type="hidden" name="op" value="list" />
-                            <label>
-                                <input type="checkbox" name="show_all" id="show_all" value="1" [% IF show_all %]checked[% END %] />
-                                Show all reports
-                            </label>
-                            <input type="submit" class="btn btn-primary" value="Apply" />
-                        </form>
-                    [% END %]
                     [% IF ( savedreports ) %]
 
                         [% IF ( filters.date || filters.author || filters.keyword ) %]

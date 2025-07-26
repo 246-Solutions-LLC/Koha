@@ -83,7 +83,7 @@ my ( $template, $borrowernumber, $cookie ) = get_template_and_user(
 my $session_id = $input->cookie('CGISESSID');
 my $session    = $session_id ? get_session($session_id) : undef;
 
-$template->param( templates => Koha::Notice::Templates->search( { module => 'report' } ) );
+$template->param( templates => Koha::Notice::Templates->search( { module => 'report' } ), op => $op );
 
 my $filter;
 if ( $input->param("filter_set") or $input->param('clear_filters') ) {
