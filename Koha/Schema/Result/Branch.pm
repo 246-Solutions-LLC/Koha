@@ -920,6 +920,21 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 reports_branches
+
+Type: has_many
+
+Related object: L<Koha::Schema::Result::ReportsBranch>
+
+=cut
+
+__PACKAGE__->has_many(
+  "reports_branches",
+  "Koha::Schema::Result::ReportsBranch",
+  { "foreign.branchcode" => "self.branchcode" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 reserves
 
 Type: has_many
