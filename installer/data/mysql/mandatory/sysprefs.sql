@@ -253,6 +253,7 @@ INSERT INTO systempreferences ( `variable`, `value`, `options`, `explanation`, `
 ('EnableAdvancedCatalogingEditor','0','','Enable the Rancor advanced cataloging editor','YesNo'),
 ('EnableBorrowerFiles','0',NULL,'If enabled, allows librarians to upload and attach arbitrary files to a borrower record.','YesNo'),
 ('EnableExpiredPasswordReset', '0', NULL, 'Enable ability for patrons with expired password to reset their password directly', 'YesNo'),
+('EnableFilteringReports', '0', NULL, 'Enable ability for staff to filter report access based on home library.', 'YesNo'),
 ('EnableItemGroupHolds','0','','Enable item groups holds feature','YesNo'),
 ('EnableItemGroups','0','','Enable the item groups feature','YesNo'),
 ('EnableOpacSearchHistory','1','YesNo','Enable or disable opac search history',''),

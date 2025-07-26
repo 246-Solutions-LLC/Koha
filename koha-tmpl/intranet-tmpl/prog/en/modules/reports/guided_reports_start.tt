@@ -3,6 +3,7 @@
 [% USE AuthorisedValues %]
 [% USE KohaDates %]
 [% USE Koha %]
+[% USE Branches %]
 [% USE TablesSettings %]
 [% USE HtmlScrubber %]
 [% USE JSON.Escape %]
@@ -850,6 +851,7 @@
                             <input type="hidden" name="reportname" value="[% reportname | html %]" />
                             <input type="hidden" name="group" value="[% group | html %]" />
                             <input type="hidden" name="subgroup" value="[% subgroup | html %]" />
+                            <input type="hidden" name="branches" value="[% branches | html %] />
                             <input type="hidden" name="notes" value="[% notes | scrub_html type => 'note' | $raw %]" />
                             <input type="hidden" name="cache_expiry" value="[% cache_expiry | html %]" />
                             <input type="hidden" name="cache_expiry_units" value="[% cache_expiry_units | html %]" />
@@ -1434,7 +1436,18 @@
                                 <span class="required">Required</span>
                             </div>
                         </fieldset>
-
+                        [% IF ( Koha.Preference('EnableFilteringReports') ) %]
+                            <fieldset class="rows">
+                                <legend>Library limitation:</legend>
+                                <div
+                                ><label for="library_limitation">Library limitation: </label>
+                                   <select id="library_limitation" name="branches" multiple size="10">
+                                        [% PROCESS options_for_libraries libraries => Branches.all( selected => report.get_library_limits, unfiltered => 1, do_not_select_my_library => 1 ) %]
+                                    </select>
+                                    <div class="hint">Limits the use of this report to the selected libraries.</div>
+                                </div>
+                            </fieldset>
+                        [% END %]       
                         <fieldset class="action">
                             <input type="hidden" name="op" value="cud-save" />
                             <input type="submit" name="submit" class="btn btn-primary" value="Save report" />
@@ -1548,7 +1561,18 @@
                             <br />
                             <span class="required" style="margin-left:30px;">Required</span>
                         </fieldset>
-
+                        [% IF ( Koha.Preference('EnableFilteringReports') ) %]
+                            <fieldset class="rows">
+                                <legend>Library limitation:</legend>
+                                <div
+                                ><label for="library_limitation">Library limitation: </label>
+                                   <select id="library_limitation" name="branches" multiple size="10">
+                                        [% PROCESS options_for_libraries libraries => Branches.all( selected => report.get_library_limits, unfiltered => 1, do_not_select_my_library => 1 ) %]
+                                    </select>
+                                    <div class="hint">Limits the use of this report to the selected libraries.</div>
+                                </div>
+                            </fieldset>
+                        [% END %]                        
                         <fieldset class="action">
                             <button class="btn btn-primary" type="submit" name="op" value="cud-update_sql">Update SQL</button>
                             <button class="btn btn-default" type="submit" name="op" value="cud-update_and_run_sql">Update and run SQL</button>

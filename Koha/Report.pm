@@ -20,9 +20,13 @@ use Modern::Perl;
 use Koha::Database;
 use Koha::Reports;
 
+use Koha::Object;
+use Koha::Object::Limit::Library;
+
+use base qw(Koha::Object Koha::Object::Limit::Library);
+
 #use Koha::DateUtils qw( dt_from_string output_pref );
 
-use base qw(Koha::Object);
 #
 # FIXME We could only return an error code instead of the arrayref
 # Only 1 error is returned
@@ -266,6 +270,20 @@ Returns name of corresponding DBIC resultset
 
 sub _type {
     return 'SavedSql';
+}
+
+=head3 _library_limits
+
+Configurable library limits
+
+=cut
+
+sub _library_limits {
+    return {
+        class   => "ReportsBranch",
+        id      => "report_id",
+        library => "branchcode",
+    };
 }
 
 1;
