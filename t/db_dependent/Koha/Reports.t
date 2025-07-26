@@ -18,7 +18,7 @@
 use Modern::Perl;
 
 use Test::NoWarnings;
-use Test::More tests => 9;
+use Test::More tests => 10;
 
 use Koha::Report;
 use Koha::Reports;
@@ -182,6 +182,42 @@ subtest '_might_add_limit' => sub {
     like(
         Koha::Report->_might_add_limit($sql), qr/ LIMIT 10$/,
         'Query refers to limit field, limit 10 found at the end'
+    );
+};
+
+subtest 'reports_branches are added and removed from report_branches table' => sub {
+    plan tests => 4;
+
+    my $updated_nb_of_reports = Koha::Reports->search->count;
+    my $report                = Koha::Report->new(
+        {
+            report_name => 'report_name_for_test_1',
+            savedsql    => 'SELECT * FROM items WHERE itemnumber IN <<Test|list>>',
+        }
+    )->store;
+
+    my $id       = $report->id;
+    my $library1 = $builder->build_object( { class => 'Koha::Libraries' } );
+    my $library2 = $builder->build_object( { class => 'Koha::Libraries' } );
+    my $library3 = $builder->build_object( { class => 'Koha::Libraries' } );
+    my @branches = ( $library1->branchcode, $library2->branchcode, $library3->branchcode );
+
+    $report->replace_library_limits( \@branches );
+
+    my @branches_loop = $report->get_library_limits->as_list;
+    is( scalar @branches_loop, 3, '3 branches added to report_branches table' );
+
+    $report->replace_library_limits( [ $library1->branchcode, $library2->branchcode ] );
+
+    @branches_loop = $report->get_library_limits->as_list;
+    is( scalar @branches_loop, 2, '1 branch removed from report_branches table' );
+
+    $report->delete;
+    is( Koha::Reports->search->count, $updated_nb_of_reports, 'Report deleted, count is back to original' );
+    is(
+        $schema->resultset('ReportsBranch')->search( { report_id => $id } )->count,
+        0,
+        'No branches left in reports_branches table after report deletion'
     );
 };
 

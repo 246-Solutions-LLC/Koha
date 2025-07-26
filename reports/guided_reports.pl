@@ -83,7 +83,22 @@ my ( $template, $borrowernumber, $cookie ) = get_template_and_user(
 my $session_id = $input->cookie('CGISESSID');
 my $session    = $session_id ? get_session($session_id) : undef;
 
-$template->param( templates => Koha::Notice::Templates->search( { module => 'report' } ) );
+my $show_all = 0;
+if ( defined $input->param('show_all') ) {
+    my $param = $input->param('show_all');
+    if ( defined $param && $param eq '1' ) {
+        $show_all = 1;
+        $session->param( 'show_all', 1 ) if $session;
+    } else {
+        $show_all = 0;
+        $session->clear('show_all') if $session;
+    }
+} elsif ( $session && defined $session->param('show_all') ) {
+    $show_all = $session->param('show_all') ? 1 : 0;
+}
+$template->param( 'show_all' => $show_all );
+
+$template->param( templates => Koha::Notice::Templates->search( { module => 'report' } ), op => $op );
 
 my $filter;
 if ( $input->param("filter_set") or $input->param('clear_filters') ) {
@@ -127,7 +142,7 @@ if ( !$op ) {
         'showsql'       => 1,
         'mana_success'  => scalar $input->param('mana_success'),
         'mana_id'       => $report->{mana_id},
-        'mana_comments' => $report->{comments}
+        'mana_comments' => $report->{comments},
     );
 
 } elsif ( $op eq 'edit_form' ) {
@@ -148,11 +163,13 @@ if ( !$op ) {
         'editsql'               => 1,
         'mana_id'               => $report->{mana_id},
         'mana_comments'         => $report->{comments},
-        'tables'                => $tables
+        'tables'                => $tables,
+        'report'                => $report,
     );
 
 } elsif ( $op eq 'cud-update_sql' || $op eq 'cud-update_and_run_sql' ) {
     my $id                 = $input->param('id');
+    my $report             = Koha::Reports->find($id);
     my $sql                = $input->param('sql');
     my $reportname         = $input->param('reportname');
     my $group              = $input->param('group');
@@ -163,7 +180,8 @@ if ( !$op ) {
     my $public             = $input->param('public');
     my $save_anyway        = $input->param('save_anyway');
     my @errors;
-    my $tables = get_tables();
+    my $tables   = get_tables();
+    my @branches = grep { $_ ne q{} } $input->multi_param('branches');
 
     # if we have the units, then we came from creating a report from SQL and thus need to handle converting units
     if ($cache_expiry_units) {
@@ -211,6 +229,8 @@ if ( !$op ) {
                 'problematic_authvals' => $problematic_authvals,
                 'warn_authval_problem' => 1,
                 'phase_update'         => 1,
+                'branches'             => @branches,
+                'report'               => $report,
             );
 
         } else {
@@ -225,9 +245,12 @@ if ( !$op ) {
                     subgroup     => $subgroup,
                     notes        => $notes,
                     public       => $public,
-                    cache_expiry => $cache_expiry,
+                    cache_expiry => $cache_expiry
                 }
             );
+
+            $report->store;
+            $report->replace_library_limits( \@branches );
 
             my $editsql = 1;
             if ( $op eq 'cud-update_and_run_sql' ) {
@@ -245,7 +268,8 @@ if ( !$op ) {
                 'cache_expiry'          => $cache_expiry,
                 'public'                => $public,
                 'usecache'              => $usecache,
-                'tables'                => $tables
+                'tables'                => $tables,
+                'report'                => $report
             );
             logaction( "REPORTS", "MODIFY", $id, "$reportname | $sql" ) if C4::Context->preference("ReportsLog");
         }
@@ -514,6 +538,7 @@ if ( !$op ) {
     my $public             = $input->param('public');
     my $save_anyway        = $input->param('save_anyway');
     my $tables             = get_tables();
+    my @branches           = grep { $_ ne q{} } $input->multi_param('branches');
 
     # if we have the units, then we came from creating a report from SQL and thus need to handle converting units
     if ($cache_expiry_units) {
@@ -591,6 +616,9 @@ if ( !$op ) {
                     public         => $public,
                 }
             );
+            my $report = Koha::Reports->find($id);
+            $report->replace_library_limits( \@branches );
+
             logaction( "REPORTS", "ADD", $id, "$name | $sql" ) if C4::Context->preference("ReportsLog");
             $template->param(
                 'save_successful'       => 1,
@@ -603,7 +631,8 @@ if ( !$op ) {
                 'cache_expiry'          => $cache_expiry,
                 'public'                => $public,
                 'usecache'              => $usecache,
-                'tables'                => $tables
+                'tables'                => $tables,
+                'report'                => $report,
             );
         }
     }
@@ -746,20 +775,24 @@ if ( !$op ) {
 
 } elsif ( $op eq 'add_form_sql' || $op eq 'duplicate' ) {
 
-    my ( $group, $subgroup, $sql, $reportname, $notes );
+    my ( $group, $subgroup, $sql, $reportname, $notes, @branches, $report );
     if ( $input->param('sql') ) {
         $group      = $input->param('report_group');
         $subgroup   = $input->param('report_subgroup');
         $sql        = $input->param('sql')        // '';
         $reportname = $input->param('reportname') // '';
         $notes      = $input->param('notes')      // '';
+        @branches   = grep { $_ ne q{} } $input->multi_param('branches');
+
     } elsif ( my $report_id = $input->param('id') ) {
-        my $report = Koha::Reports->find($report_id);
+        $report     = Koha::Reports->find($report_id);
         $group      = $report->report_group;
         $subgroup   = $report->report_subgroup;
         $sql        = $report->savedsql    // '';
         $reportname = $report->report_name // '';
         $notes      = $report->notes       // '';
+        @branches   = grep { $_ ne q{} } $input->multi_param('branches');
+
     }
 
     my $tables = get_tables();
@@ -774,6 +807,7 @@ if ( !$op ) {
         'cache_expiry'          => 300,
         'usecache'              => $usecache,
         'tables'                => $tables,
+        'report'                => $report,
 
     );
 }
@@ -1081,24 +1115,67 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     my $subgroup = $input->param('subgroup');
     $filter->{group}    = $group;
     $filter->{subgroup} = $subgroup;
-    my $reports = get_saved_reports($filter);
-    my $has_obsolete_reports;
-    for my $report (@$reports) {
-        $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
-        if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
-            $report->{seems_obsolete} = 1;
-            $has_obsolete_reports++;
+
+    my $pref_limit_reports_by_branch = C4::Context->preference("LimitReportsByBranch");
+    if ( $show_all == 0 && $pref_limit_reports_by_branch == "1" ) {
+        my $reports_with_library_limits_results =
+            Koha::Reports->search_with_library_limits( {}, {}, C4::Context::mybranch() );
+        my $reports_list     = $reports_with_library_limits_results->unblessed;
+        my $filtered_reports = get_saved_reports($filter);
+
+        # Remove all reports in $reports_list that are not also in $filtered_reports
+
+        my %seen;
+        my @filtered_reports_by_library_limits;
+        foreach my $element (@$filtered_reports) {
+            $seen{ $element->{id} } = 1;
         }
+
+        foreach my $element (@$reports_list) {
+            if ( $seen{ $element->{id} } ) {
+                push @filtered_reports_by_library_limits, $element;
+            }
+        }
+
+        my $has_obsolete_reports;
+        for my $report (@filtered_reports_by_library_limits) {
+            $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
+            if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
+                $report->{seems_obsolete} = 1;
+                $has_obsolete_reports++;
+            }
+            $template->param(
+                'manamsg'               => $input->param('manamsg') || '',
+                'saved1'                => 1,
+                'savedreports'          => \@filtered_reports_by_library_limits,
+                'usecache'              => $usecache,
+                'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
+                filters                 => $filter,
+                has_obsolete_reports    => $has_obsolete_reports,
+            );
+        }
+    } else {
+
+        my $reports = get_saved_reports($filter);
+        my $has_obsolete_reports;
+
+        for my $report (@$reports) {
+            $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
+            if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
+                $report->{seems_obsolete} = 1;
+                $has_obsolete_reports++;
+            }
+        }
+        $template->param(
+            'manamsg'               => $input->param('manamsg') || '',
+            'saved1'                => 1,
+            'savedreports'          => $reports,
+            'usecache'              => $usecache,
+            'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
+            filters                 => $filter,
+            has_obsolete_reports    => $has_obsolete_reports,
+        );
     }
-    $template->param(
-        'manamsg'               => $input->param('manamsg') || '',
-        'saved1'                => 1,
-        'savedreports'          => $reports,
-        'usecache'              => $usecache,
-        'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
-        filters                 => $filter,
-        has_obsolete_reports    => $has_obsolete_reports,
-    );
 }
 
 # pass $sth, get back an array of names for the column headers
