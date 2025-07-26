@@ -487,6 +487,9 @@
     [%- CASE 'execute_reports' -%]
         <span class="sub_permission execute_reports_subpermission"> Execute SQL reports </span>
         <span class="permissioncode">([% name | html %])</span>
+    [%- CASE 'manage_report_filters' -%]
+        <span class="sub_permission manage_report_filters_subpermission"> Manage Report Filters </span>
+        <span class="permissioncode">([% name | html %])</span>
     [%- CASE 'add_reserves' -%]
         <span class="sub_permission add_reserves_subpermission"> Add course reserves </span>
         <span class="permissioncode">([% name | html %])</span>
