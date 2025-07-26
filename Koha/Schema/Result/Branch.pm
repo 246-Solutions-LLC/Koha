@@ -905,6 +905,21 @@ __PACKAGE__->has_many(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 reports_branches
+
+Type: has_many
+
+Related object: L<Koha::Schema::Result::ReportsBranch>
+
+=cut
+
+__PACKAGE__->has_many(
+  "reports_branches",
+  "Koha::Schema::Result::ReportsBranch",
+  { "foreign.branchcode" => "self.branchcode" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 reserves
 
 Type: has_many
@@ -996,8 +1011,8 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07051 @ 2024-05-03 13:13:25
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:HiH1QNlDqKcq9GeM85Pu0A
+# Created by DBIx::Class::Schema::Loader v0.07051 @ 2025-08-25 23:49:56
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:FzlapmLTM+K9Lh7Fq4BwdQ
 
 __PACKAGE__->has_many(
     "additional_field_values",
