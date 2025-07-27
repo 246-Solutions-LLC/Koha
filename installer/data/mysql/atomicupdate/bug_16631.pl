@@ -16,12 +16,16 @@ return {
             KEY `branchcode` (`branchcode`),
             CONSTRAINT `reports_branches_ibfk_1` FOREIGN KEY (`report_id`) REFERENCES `saved_sql` (`id`) ON DELETE CASCADE,
             CONSTRAINT `reports_branches_ibfk_2` FOREIGN KEY (`branchcode`) REFERENCES `branches` (`branchcode`) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-            INSERT IGNORE INTO systempreferences
-            (variable,value,options,explanation,type) VALUES ('EnableFilteringReports', '0', NULL, 'Enable ability for staff to filter report access based on home library.', 'YesNo');}
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci}
         );
 
         say $out "Added new table 'reports_branches'";
+
+        $dbh->do(
+            q{INSERT IGNORE INTO systempreferences
+            (variable,value,options,explanation,type) VALUES ('EnableFilteringReports', '0', NULL, 'Enable ability for staff to filter report access based on home library.', 'YesNo')}
+        );
+
         say $out "Added new system preference 'EnableFilteringReports'";
     },
 };
