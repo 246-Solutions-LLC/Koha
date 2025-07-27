@@ -851,7 +851,7 @@
                             <input type="hidden" name="reportname" value="[% reportname | html %]" />
                             <input type="hidden" name="group" value="[% group | html %]" />
                             <input type="hidden" name="subgroup" value="[% subgroup | html %]" />
-                            <input type="hidden" name="branches" value="[% branches | html %] />
+                            <input type="hidden" name="branches" value="[% branches | html %]" />
                             <input type="hidden" name="notes" value="[% notes | scrub_html type => 'note' | $raw %]" />
                             <input type="hidden" name="cache_expiry" value="[% cache_expiry | html %]" />
                             <input type="hidden" name="cache_expiry_units" value="[% cache_expiry_units | html %]" />
