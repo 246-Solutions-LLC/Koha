@@ -83,6 +83,21 @@ my ( $template, $borrowernumber, $cookie ) = get_template_and_user(
 my $session_id = $input->cookie('CGISESSID');
 my $session    = $session_id ? get_session($session_id) : undef;
 
+my $show_all = 0;
+if ( defined $input->param('show_all') ) {
+    my $param = $input->param('show_all');
+    if ( defined $param && $param eq '1' ) {
+        $show_all = 1;
+        $session->param( 'show_all', 1 ) if $session;
+    } else {
+        $show_all = 0;
+        $session->clear('show_all') if $session;
+    }
+} elsif ( $session && defined $session->param('show_all') ) {
+    $show_all = $session->param('show_all') ? 1 : 0;
+}
+$template->param( 'show_all' => $show_all );
+
 $template->param( templates => Koha::Notice::Templates->search( { module => 'report' } ), op => $op );
 
 my $filter;
@@ -94,9 +109,6 @@ if ( $input->param("filter_set") or $input->param('clear_filters') ) {
 } elsif ( $session and not $input->param('clear_filters') ) {
     $filter = $session->param('report_filter');
 }
-
-my $show_all = $input->param('show_all');
-$template->param( show_all => $show_all );
 
 my @errors = ();
 if ( !$op ) {
@@ -1105,7 +1117,7 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     $filter->{subgroup} = $subgroup;
 
     my $pref_enable_filtering_reports = C4::Context->preference("EnableFilteringReports");
-    if ( !$show_all && $pref_enable_filtering_reports == "1" ) {
+    if ( $show_all == 0 && $pref_enable_filtering_reports == "1" ) {
         my $reports_with_library_limits_results =
             Koha::Reports->search_with_library_limits( {}, {}, C4::Context::mybranch() );
         my $reports_list = $reports_with_library_limits_results->unblessed;

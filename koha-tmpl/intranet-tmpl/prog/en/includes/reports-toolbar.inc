@@ -17,7 +17,7 @@
                 <form method="get" action="">
                     <input type="hidden" name="op" value="list" />
                     [% IF show_all %]
-                        <!-- If show_all is set, submit without show_all to clear the param -->
+                        <input type="hidden" name="show_all" value="0" />
                         <button type="submit" class="btn btn-default"><i class="fa fa-eye-slash"></i> Show my reports only</button>
                     [% ELSE %]
                         <input type="hidden" name="show_all" value="1" />
