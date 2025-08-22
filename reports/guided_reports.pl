@@ -42,6 +42,7 @@ use Koha::Notice::Templates;
 use Koha::TemplateUtils qw( process_tt );
 use C4::ClassSource     qw( GetClassSources );
 use C4::Scrubber;
+use Array::Utils qw(intersect unique);
 
 =head1 NAME
 
@@ -1107,9 +1108,25 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     if ( $pref_enable_filtering_reports == "1" ) {
         my $reports_with_library_limits_results =
             Koha::Reports->search_with_library_limits( {}, {}, C4::Context::mybranch() );
-        my $reports_list = $reports_with_library_limits_results->unblessed;
+        my $reports_list     = $reports_with_library_limits_results->unblessed;
+        my $filtered_reports = get_saved_reports($filter);
+
+        # Remove all reports in $reports_list that are not also in $filtered_reports
+
+        my %seen;
+        my @filtered_reports_by_library_limits;
+        foreach my $element (@$filtered_reports) {
+            $seen{ $element->{id} } = 1;
+        }
+
+        foreach my $element (@$reports_list) {
+            if ( $seen{ $element->{id} } ) {
+                push @filtered_reports_by_library_limits, $element;
+            }
+        }
+
         my $has_obsolete_reports;
-        while ( my $report = $reports_with_library_limits_results->next ) {
+        for my $report (@filtered_reports_by_library_limits) {
             $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
             if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
                 $report->{seems_obsolete} = 1;
@@ -1118,7 +1135,7 @@ if ( $op eq 'list' || $op eq 'convert' ) {
             $template->param(
                 'manamsg'               => $input->param('manamsg') || '',
                 'saved1'                => 1,
-                'savedreports'          => $reports_list,
+                'savedreports'          => \@filtered_reports_by_library_limits,
                 'usecache'              => $usecache,
                 'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
                 filters                 => $filter,
