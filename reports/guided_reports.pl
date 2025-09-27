@@ -1142,8 +1142,6 @@ if ( $op eq 'list' || $op eq 'convert' ) {
         filters                 => $filter,
         has_obsolete_reports    => $has_obsolete_reports,
     );
-
-    # }
 }
 
 # pass $sth, get back an array of names for the column headers
