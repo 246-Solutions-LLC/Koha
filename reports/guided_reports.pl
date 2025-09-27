@@ -1117,65 +1117,33 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     $filter->{subgroup} = $subgroup;
 
     my $pref_limit_reports_by_branch = C4::Context->preference("LimitReportsByBranch");
+    my $reports;
+
     if ( $show_all == 0 && $pref_limit_reports_by_branch == "1" ) {
-        my $reports_with_library_limits_results =
-            Koha::Reports->search_with_library_limits( {}, {}, C4::Context::mybranch() );
-        my $reports_list     = $reports_with_library_limits_results->unblessed;
-        my $filtered_reports = get_saved_reports($filter);
-
-        # Remove all reports in $reports_list that are not also in $filtered_reports
-
-        my %seen;
-        my @filtered_reports_by_library_limits;
-        foreach my $element (@$filtered_reports) {
-            $seen{ $element->{id} } = 1;
-        }
-
-        foreach my $element (@$reports_list) {
-            if ( $seen{ $element->{id} } ) {
-                push @filtered_reports_by_library_limits, $element;
-            }
-        }
-
-        my $has_obsolete_reports;
-        for my $report (@filtered_reports_by_library_limits) {
-            $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
-            if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
-                $report->{seems_obsolete} = 1;
-                $has_obsolete_reports++;
-            }
-            $template->param(
-                'manamsg'               => $input->param('manamsg') || '',
-                'saved1'                => 1,
-                'savedreports'          => \@filtered_reports_by_library_limits,
-                'usecache'              => $usecache,
-                'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
-                filters                 => $filter,
-                has_obsolete_reports    => $has_obsolete_reports,
-            );
-        }
+        $reports = get_filtered_reports_by_library_limits($filter);
     } else {
-
-        my $reports = get_saved_reports($filter);
-        my $has_obsolete_reports;
-
-        for my $report (@$reports) {
-            $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
-            if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
-                $report->{seems_obsolete} = 1;
-                $has_obsolete_reports++;
-            }
-        }
-        $template->param(
-            'manamsg'               => $input->param('manamsg') || '',
-            'saved1'                => 1,
-            'savedreports'          => $reports,
-            'usecache'              => $usecache,
-            'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
-            filters                 => $filter,
-            has_obsolete_reports    => $has_obsolete_reports,
-        );
+        $reports = get_saved_reports($filter);
     }
+    my $has_obsolete_reports;
+
+    for my $report (@$reports) {
+        $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
+        if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
+            $report->{seems_obsolete} = 1;
+            $has_obsolete_reports++;
+        }
+    }
+    $template->param(
+        'manamsg'               => $input->param('manamsg') || '',
+        'saved1'                => 1,
+        'savedreports'          => $reports,
+        'usecache'              => $usecache,
+        'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
+        filters                 => $filter,
+        has_obsolete_reports    => $has_obsolete_reports,
+    );
+
+    # }
 }
 
 # pass $sth, get back an array of names for the column headers
@@ -1286,3 +1254,24 @@ sub create_non_existing_group_and_subgroup {
     }
 }
 
+sub get_filtered_reports_by_library_limits {
+    my ($filter) = @_;
+    my $reports_with_library_limits_results =
+        Koha::Reports->search_with_library_limits( {}, {}, C4::Context::mybranch() );
+    my $reports_list     = $reports_with_library_limits_results->unblessed;
+    my $filtered_reports = get_saved_reports($filter);
+
+    # Remove all reports in $reports_list that are not also in $filtered_reports
+    my %seen;
+    my @filtered_reports_by_library_limits;
+    foreach my $element (@$filtered_reports) {
+        $seen{ $element->{id} } = 1;
+    }
+
+    foreach my $element (@$reports_list) {
+        if ( $seen{ $element->{id} } ) {
+            push @filtered_reports_by_library_limits, $element;
+        }
+    }
+    return \@filtered_reports_by_library_limits;
+}
