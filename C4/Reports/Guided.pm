@@ -881,7 +881,15 @@ sub get_saved_reports {
 
     my $result = $dbh->selectall_arrayref( $query, { Slice => {} }, @args );
 
-    return $result;
+    return $result if $filter->{show_all_reports};
+
+    # Apply library limits
+    my $limited_reports = Koha::Reports->search_with_library_limits( {}, {}, C4::Context::mybranch() );
+    my %allowed         = map  { $_->{id} => 1 } @{ $limited_reports->unblessed };
+    my @limited         = grep { $allowed{ $_->{id} } } @$result;
+
+    return \@limited;
+
 }
 
 =head2 get_column_type($column)

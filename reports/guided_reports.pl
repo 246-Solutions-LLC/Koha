@@ -83,27 +83,10 @@ my ( $template, $borrowernumber, $cookie ) = get_template_and_user(
 my $session_id = $input->cookie('CGISESSID');
 my $session    = $session_id ? get_session($session_id) : undef;
 
-my $show_all = 0;
-if ( defined $input->param('show_all') ) {
-    my $param = $input->param('show_all');
-    if ( defined $param && $param eq '1' ) {
-        $show_all = 1;
-        $session->param( 'show_all', 1 ) if $session;
-    } else {
-        $show_all = 0;
-        $session->clear('show_all') if $session;
-    }
-} elsif ( $session && defined $session->param('show_all') ) {
-    $show_all = $session->param('show_all') ? 1 : 0;
-}
-$template->param( 'show_all' => $show_all );
-
-$template->param( templates => Koha::Notice::Templates->search( { module => 'report' } ), op => $op );
-
 my $filter;
 if ( $input->param("filter_set") or $input->param('clear_filters') ) {
     $filter = {};
-    $filter->{$_} = $input->param("filter_$_") foreach qw/date author keyword group subgroup/;
+    $filter->{$_} = $input->param("filter_$_") foreach qw/date author keyword show_all_reports group subgroup/;
     $session->param( 'report_filter', $filter ) if $session;
     $template->param( 'filter_set' => 1 );
 } elsif ( $session and not $input->param('clear_filters') ) {
@@ -142,7 +125,7 @@ if ( !$op ) {
         'showsql'       => 1,
         'mana_success'  => scalar $input->param('mana_success'),
         'mana_id'       => $report->{mana_id},
-        'mana_comments' => $report->{comments},
+        'mana_comments' => $report->{comments}
     );
 
 } elsif ( $op eq 'edit_form' ) {
@@ -1111,19 +1094,27 @@ if ( $op eq 'list' || $op eq 'convert' ) {
 
     # use a saved report
     # get list of reports and display them
-    my $group    = $input->param('group');
-    my $subgroup = $input->param('subgroup');
+    my $group           = $input->param('group');
+    my $subgroup        = $input->param('subgroup');
+    my $show_all_filter = $filter->{show_all_reports};
+    my $logged_in_user  = Koha::Patrons->find($borrowernumber);
     $filter->{group}    = $group;
     $filter->{subgroup} = $subgroup;
 
     my $pref_limit_reports_by_branch = C4::Context->preference("LimitReportsByBranch");
-    my $reports;
 
-    if ( $show_all == 0 && $pref_limit_reports_by_branch == "1" ) {
-        $reports = get_filtered_reports_by_library_limits($filter);
+    if ( !$pref_limit_reports_by_branch ) {
+        $filter->{show_all_reports} = 1;
+    } elsif ($show_all_filter) {
+        my $can_manage_limits = $logged_in_user->is_superlibrarian
+            || $logged_in_user->has_permission( { reports => 'manage_report_limits' } );
+        $filter->{show_all_reports} = $can_manage_limits ? $show_all_filter : 0;
     } else {
-        $reports = get_saved_reports($filter);
+        $filter->{show_all_reports} = 0;
     }
+
+    my $reports = get_saved_reports($filter);
+
     my $has_obsolete_reports;
 
     for my $report (@$reports) {
@@ -1250,26 +1241,4 @@ sub create_non_existing_group_and_subgroup {
             }
         }
     }
-}
-
-sub get_filtered_reports_by_library_limits {
-    my ($filter) = @_;
-    my $reports_with_library_limits_results =
-        Koha::Reports->search_with_library_limits( {}, {}, C4::Context::mybranch() );
-    my $reports_list     = $reports_with_library_limits_results->unblessed;
-    my $filtered_reports = get_saved_reports($filter);
-
-    # Remove all reports in $reports_list that are not also in $filtered_reports
-    my %seen;
-    my @filtered_reports_by_library_limits;
-    foreach my $element (@$filtered_reports) {
-        $seen{ $element->{id} } = 1;
-    }
-
-    foreach my $element (@$reports_list) {
-        if ( $seen{ $element->{id} } ) {
-            push @filtered_reports_by_library_limits, $element;
-        }
-    }
-    return \@filtered_reports_by_library_limits;
 }
