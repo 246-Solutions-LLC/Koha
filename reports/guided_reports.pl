@@ -233,7 +233,7 @@ if ( !$op ) {
                     subgroup     => $subgroup,
                     notes        => $notes,
                     public       => $public,
-                    cache_expiry => $cache_expiry
+                    cache_expiry => $cache_expiry,
                 }
             );
 
@@ -1124,7 +1124,6 @@ if ( $op eq 'list' || $op eq 'convert' ) {
         && !$filter->{show_all_reports};
 
     my $has_obsolete_reports;
-
     for my $report (@$reports) {
         $report->{results} = C4::Reports::Guided::get_results( $report->{id} );
         if ( $report->{savedsql} =~ m|biblioitems| and $report->{savedsql} =~ m|marcxml| ) {
