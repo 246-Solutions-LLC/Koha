@@ -200,7 +200,7 @@
             <main>
                 [% INCLUDE 'messages.inc' %]
 
-                [% INCLUDE 'reports-toolbar.inc' %]
+                [% INCLUDE "reports-toolbar.inc" %]
 
                 [% IF ( start ) %]
                     <h1>Guided reports</h1>
@@ -237,7 +237,7 @@
                     <h1>Saved reports</h1>
                     [% IF ( savedreports ) %]
 
-                        [% IF ( filters.date || filters.author || filters.keyword ) %]
+                        [% IF ( filters.date || filters.author || filters.keyword || branch_limit_active ) %]
                             <p
                                 >Filtered by:
                                 <span class="filter">
@@ -249,6 +249,9 @@
                                     [% END %]
                                     [% IF ( filters.keyword ) %]
                                         <span class="filter_keyword"><strong>Keyword:</strong> [% filters.keyword | html %]</span>
+                                    [% END %]
+                                    [% IF branch_limit_active %]
+                                        <span class="filter_show_all"><strong>Show reports:</strong> My branch reports</span>
                                     [% END %]
                                     <a class="clear_filter" href="/cgi-bin/koha/reports/guided_reports.pl?op=list&clear_filters=1"><i class="fa fa-times" aria-hidden="true"></i> Clear</a>
                                 </span>
@@ -309,6 +312,9 @@
                                                         <th>Update</th>
                                                     [% ELSE %]
                                                         <th class="NoVisible">Update</th>
+                                                    [% END %]
+                                                    [% IF ( branch_limit_active ) %]
+                                                        <th>Library limits</th>
                                                     [% END %]
                                                     <th class="no-sort no-export">Actions</th>
                                                 </tr>
@@ -377,6 +383,13 @@
                                                                 >
                                                             [% END %]
                                                         </td>
+                                                        [% IF ( branch_limit_active ) %]
+                                                            <td>
+                                                                [% IF savedreport.library_limits %]
+                                                                    [% savedreport.library_limits.join(', ') %]
+                                                                [% END %]
+                                                            </td>
+                                                        [% END %]
                                                         <td>
                                                             <div class="btn-group dropup">
                                                                 [%# There should be no space between these two buttons, it would render badly %]
@@ -456,7 +469,7 @@
 
                                     <a href="/cgi-bin/koha/reports/guided_reports.pl?op=add_form_sql" class="new btn btn-default"><i class="fa fa-plus" aria-hidden="true"></i> New SQL report</a>
 
-                                    <a href="/cgi-bin/koha/reports/guided_reports.pl?op=list&filter_set=1&filter_keywork=" class="deny btn btn-default"><i class="fa fa-fw fa-times" aria-hidden="true"></i> Cancel filter</a>
+                                    <a href="/cgi-bin/koha/reports/guided_reports.pl?op=list&filter_set=1&clear_filters=1" class="deny btn btn-default"><i class="fa fa-fw fa-times" aria-hidden="true"></i> Cancel filter</a>
                                 [% END %]
                             [% ELSE %]
                                 <h4>There are no saved reports. </h4>

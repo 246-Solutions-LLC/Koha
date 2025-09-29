@@ -87,6 +87,11 @@ my $filter;
 if ( $input->param("filter_set") or $input->param('clear_filters') ) {
     $filter = {};
     $filter->{$_} = $input->param("filter_$_") foreach qw/date author keyword show_all_reports group subgroup/;
+
+    if ( $input->param('clear_filters') ) {
+        $filter->{show_all_reports} = 1;
+    }
+
     $session->param( 'report_filter', $filter ) if $session;
     $template->param( 'filter_set' => 1 );
 } elsif ( $session and not $input->param('clear_filters') ) {
@@ -1101,11 +1106,7 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     $filter->{group}    = $group;
     $filter->{subgroup} = $subgroup;
 
-    my $pref_limit_reports_by_branch = C4::Context->preference("LimitReportsByBranch");
-
-    if ( !$pref_limit_reports_by_branch ) {
-        $filter->{show_all_reports} = 1;
-    } elsif ($show_all_filter) {
+    if ($show_all_filter) {
         my $can_manage_limits = $logged_in_user->is_superlibrarian
             || $logged_in_user->has_permission( { reports => 'manage_report_limits' } );
         $filter->{show_all_reports} = $can_manage_limits ? $show_all_filter : 0;
@@ -1114,6 +1115,13 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     }
 
     my $reports = get_saved_reports($filter);
+
+    my $can_manage_limits = $logged_in_user->is_superlibrarian
+        || $logged_in_user->has_permission( { reports => 'manage_report_limits' } );
+    my $branch_limit_active =
+           C4::Context->preference('LimitReportsByBranch')
+        && $can_manage_limits
+        && !$filter->{show_all_reports};
 
     my $has_obsolete_reports;
 
@@ -1125,13 +1133,15 @@ if ( $op eq 'list' || $op eq 'convert' ) {
         }
     }
     $template->param(
-        'manamsg'               => $input->param('manamsg') || '',
-        'saved1'                => 1,
-        'savedreports'          => $reports,
-        'usecache'              => $usecache,
-        'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
-        filters                 => $filter,
-        has_obsolete_reports    => $has_obsolete_reports,
+        'manamsg'                => $input->param('manamsg') || '',
+        'saved1'                 => 1,
+        'savedreports'           => $reports,
+        'usecache'               => $usecache,
+        'groups_with_subgroups'  => groups_with_subgroups( $group, $subgroup ),
+        filters                  => $filter,
+        has_obsolete_reports     => $has_obsolete_reports,
+        branch_limit_active      => $branch_limit_active,
+        can_manage_report_limits => $can_manage_limits,
     );
 }
 
