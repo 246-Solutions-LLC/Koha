@@ -202,6 +202,15 @@
 
                 [% INCLUDE "reports-toolbar.inc" %]
 
+                [% IF access_denied %]
+                    <div class="alert alert-danger">
+                        <h3>Access denied</h3>
+                        <p>This report is restricted and cannot be accessed by the current user.</p>
+                        [% IF id %]<p>Report ID: [% id | html %]</p>[% END %]
+                        <p><a class="btn btn-secondary" href="/cgi-bin/koha/reports/guided_reports.pl?op=list">Return to saved reports</a></p>
+                    </div>
+                [% END %]
+
                 [% IF ( start ) %]
                     <h1>Guided reports</h1>
                     <p>Use the guided reports engine to create non standard reports. This feature aims to provide some middle ground between the built in canned reports and writing custom SQL reports.</p>
@@ -313,7 +322,7 @@
                                                     [% ELSE %]
                                                         <th class="NoVisible">Update</th>
                                                     [% END %]
-                                                    [% IF ( branch_limit_active ) %]
+                                                    [% IF ( can_manage_report_limits ) %]
                                                         <th>Library limits</th>
                                                     [% END %]
                                                     <th class="no-sort no-export">Actions</th>
@@ -383,7 +392,7 @@
                                                                 >
                                                             [% END %]
                                                         </td>
-                                                        [% IF ( branch_limit_active ) %]
+                                                        [% IF ( can_manage_report_limits ) %]
                                                             <td>
                                                                 [% IF savedreport.library_limits %]
                                                                     [% savedreport.library_limits.join(', ') %]
