@@ -55,11 +55,11 @@ my $id                 = $input->param('id');
 my $selected_report_id = $input->param('report');
 my $selected_report    = $selected_report_id ? Koha::Reports->find($selected_report_id) : undef;
 if ( $op eq 'cud-add' && $selected_report_id ) {
-    my $patron = Koha::Patrons->find($borrowernumber);
+    my $logged_in_user = Koha::Patrons->find($borrowernumber);
     if ( !$selected_report ) {
         $template->param( no_sql_for_id => $selected_report_id, access_denied => 1 );
         $op = '';
-    } elsif ( !$selected_report->can_access($patron) ) {
+    } elsif ( !$selected_report->can_access($logged_in_user) ) {
         $template->param( access_denied => 1, id => $selected_report_id );
         $op = '';
     }
@@ -125,8 +125,8 @@ foreach my $job ( values %$jobs ) {
 
 @jobloop = sort { $a->{TIME} cmp $b->{TIME} } @jobloop;
 
-my $patron            = Koha::Patrons->find($borrowernumber);
-my $can_manage_limits = Koha::Report->can_manage_limits($patron);
+my $logged_in_user    = Koha::Patrons->find($borrowernumber);
+my $can_manage_limits = Koha::Report->can_manage_limits($logged_in_user);
 
 my $reports =
     $can_manage_limits
@@ -139,7 +139,7 @@ if ($can_manage_limits) {
 } else {
     @final_reports = grep {
         my $r_obj = Koha::Reports->find( $_->{id} );
-        $r_obj && $r_obj->can_access($patron);
+        $r_obj && $r_obj->can_access($logged_in_user);
     } @$reports;
 }
 
