@@ -98,7 +98,24 @@ if ( $input->param("filter_set") or $input->param('clear_filters') ) {
     $filter = $session->param('report_filter');
 }
 
-my @errors = ();
+my @errors             = ();
+my %OP_REQUIRES_REPORT = map { $_ => 1 } qw(show edit_form duplicate cud-update_sql cud-update_and_run_sql export run);
+my $report_id          = $input->param('id');
+my $report;
+my $access_blocked;
+if ( $OP_REQUIRES_REPORT{$op} && $report_id ) {
+    $report = Koha::Reports->find($report_id);
+    if ($report) {
+        my $patron = Koha::Patrons->find($borrowernumber);
+        unless ( $report->can_access($patron) ) {
+            $template->param( access_denied => 1, denied_op => $op, id => $report_id );
+            $access_blocked = 1;
+        }
+    } else {
+        push @errors, { no_sql_for_id => $report_id };
+    }
+}
+$op = '' if $access_blocked;
 if ( !$op ) {
     $template->param( 'start' => 1 );
 
@@ -119,14 +136,9 @@ if ( !$op ) {
     $op = 'list';
 
 } elsif ( $op eq 'show' ) {
-
-    my $id     = $input->param('id');
-    my $report = Koha::Reports->find($id);
-    if ( $report && !_can_access_report( $report, $borrowernumber ) ) {
-        $template->param( access_denied => 1, denied_op => 'show', id => $id );
-    } elsif ($report) {
+    if ($report) {
         $template->param(
-            'id'            => $id,
+            'id'            => $report_id,
             'reportname'    => $report->report_name,
             'notes'         => $report->notes,
             'sql'           => $report->savedsql,
@@ -135,16 +147,10 @@ if ( !$op ) {
             'mana_id'       => $report->{mana_id},
             'mana_comments' => $report->{comments}
         );
-    } else {
-        push @errors, { no_sql_for_id => $id };
     }
 
 } elsif ( $op eq 'edit_form' ) {
-    my $id     = $input->param('id');
-    my $report = Koha::Reports->find($id);
-    if ( $report && !_can_access_report( $report, $borrowernumber ) ) {
-        $template->param( access_denied => 1, denied_op => 'edit_form', id => $id );
-    } elsif ($report) {
+    if ($report) {
         my $group    = $report->report_group;
         my $subgroup = $report->report_subgroup;
         my $tables   = get_tables();
@@ -153,7 +159,7 @@ if ( !$op ) {
             'reportname'            => $report->report_name,
             'groups_with_subgroups' => groups_with_subgroups( $group, $subgroup ),
             'notes'                 => $report->notes,
-            'id'                    => $id,
+            'id'                    => $report_id,
             'cache_expiry'          => $report->cache_expiry,
             'public'                => $report->public,
             'usecache'              => $usecache,
@@ -163,16 +169,11 @@ if ( !$op ) {
             'tables'                => $tables,
             'report'                => $report,
         );
-    } else {
-        push @errors, { no_sql_for_id => $id };
     }
 
 } elsif ( $op eq 'cud-update_sql' || $op eq 'cud-update_and_run_sql' ) {
-    my $id     = $input->param('id');
-    my $report = Koha::Reports->find($id);
-    if ( $report && !_can_access_report( $report, $borrowernumber ) ) {
-        $template->param( access_denied => 1, denied_op => 'update_sql', id => $id );
-    } elsif ($report) {
+    if ($report) {
+        my $id                 = $report_id;
         my $sql                = $input->param('sql');
         my $reportname         = $input->param('reportname');
         my $group              = $input->param('group');
@@ -286,8 +287,6 @@ if ( !$op ) {
                 $op = 'run';
             }
         }
-    } else {
-        push @errors, { no_sql_for_id => $id };
     }
 
 } elsif ( $op eq 'retrieve_results' ) {
@@ -656,11 +655,7 @@ if ( !$op ) {
 } elsif ( $op eq 'export' ) {
 
     # export results to tab separated text or CSV
-    my $report_id = $input->param('id');
-    my $report    = Koha::Reports->find($report_id);
-    if ( $report && !_can_access_report( $report, $borrowernumber ) ) {
-        $template->param( access_denied => 1, denied_op => 'export', id => $report_id );
-    } elsif ($report) {
+    if ($report) {
         my $sql         = $report->savedsql;
         my @param_names = $input->multi_param('param_name');
         my @sql_params  = $input->multi_param('sql_params');
@@ -828,7 +823,6 @@ if ( $op eq 'run' ) {
     # execute a saved report
     my $limit           = $input->param('limit') || 20;
     my $offset          = 0;
-    my $report_id       = $input->param('id');
     my @sql_params      = $input->multi_param('sql_params');
     my @param_names     = $input->multi_param('param_name');
     my $template_id     = $input->param('template');
@@ -845,259 +839,253 @@ if ( $op eq 'run' ) {
     );
 
     my ( $sql, $original_sql, $type, $name, $notes );
-    if ( my $report = Koha::Reports->find($report_id) ) {
-        unless ( can_access_report( $report, $borrowernumber ) ) {
-            $template->param( access_denied => 1, denied_op => 'run', id => $report_id );
-        } else {
-            $sql   = $original_sql = $report->savedsql;
-            $name  = $report->report_name;
-            $notes = $report->notes;
+    if ($report) {
+        $sql   = $original_sql = $report->savedsql;
+        $name  = $report->report_name;
+        $notes = $report->notes;
 
-            my @rows    = ();
-            my @allrows = ();
+        my @rows    = ();
+        my @allrows = ();
 
-            # if we have at least 1 parameter, and it's not filled, then don't execute but ask for parameters
-            if ( $sql =~ /<</ && !@sql_params ) {
+        # if we have at least 1 parameter, and it's not filled, then don't execute but ask for parameters
+        if ( $sql =~ /<</ && !@sql_params ) {
 
-                # split on ??. Each odd (2,4,6,...) entry should be a parameter to fill
-                my @split = split /<<|>>/, $sql;
-                my @tmpl_parameters;
-                my @authval_errors;
-                my %uniq_params;
-                for ( my $i = 0 ; $i < ( $#split / 2 ) ; $i++ ) {
-                    my ( $text, $authorised_value_all ) = split /\|/, $split[ $i * 2 + 1 ];
-                    my $sep = $authorised_value_all ? "|" : "";
-                    if ( defined $uniq_params{ $text . $sep . $authorised_value_all } ) {
-                        next;
+            # split on ??. Each odd (2,4,6,...) entry should be a parameter to fill
+            my @split = split /<<|>>/, $sql;
+            my @tmpl_parameters;
+            my @authval_errors;
+            my %uniq_params;
+            for ( my $i = 0 ; $i < ( $#split / 2 ) ; $i++ ) {
+                my ( $text, $authorised_value_all ) = split /\|/, $split[ $i * 2 + 1 ];
+                my $sep = $authorised_value_all ? "|" : "";
+                if ( defined $uniq_params{ $text . $sep . $authorised_value_all } ) {
+                    next;
+                } else {
+                    $uniq_params{ $text . $sep . $authorised_value_all } = "$i";
+                }
+                my ( $authorised_value, $param_options ) = split /:/, $authorised_value_all;
+                my $all;
+                my $multiple;
+                if ( $param_options eq "all" ) {
+                    $all = "all";
+                } elsif ( $param_options eq "in" ) {
+                    $multiple = "multiple";
+                }
+                my $input;
+                my $labelid;
+                if ( not defined $authorised_value ) {
+
+                    # no authorised value input, provide a text box
+                    $input = "text";
+                } elsif ( $authorised_value eq "date" ) {
+
+                    # require a date, provide a date picker
+                    $input = 'date';
+                } elsif ( $authorised_value eq "list" ) {
+
+                    # require a list, provide a textarea
+                    $input = 'textarea';
+                } else {
+
+                    # defined $authorised_value, and not 'date'
+                    my $dbh = C4::Context->dbh;
+                    my @authorised_values;
+                    my %authorised_lib;
+
+                    # builds list, depending on authorised value...
+                    if ( $authorised_value eq "branches" ) {
+                        my $libraries = Koha::Libraries->search( {}, { order_by => ['branchname'] } );
+                        while ( my $library = $libraries->next ) {
+                            push @authorised_values, $library->branchcode;
+                            $authorised_lib{ $library->branchcode } = $library->branchname;
+                        }
+                    } elsif ( $authorised_value eq "itemtypes" ) {
+                        my $sth = $dbh->prepare("SELECT itemtype,description FROM itemtypes ORDER BY description");
+                        $sth->execute;
+                        while ( my ( $itemtype, $description ) = $sth->fetchrow_array ) {
+                            push @authorised_values, $itemtype;
+                            $authorised_lib{$itemtype} = $description;
+                        }
+                    } elsif ( $authorised_value eq "biblio_framework" ) {
+                        my @frameworks =
+                            Koha::BiblioFrameworks->search( {}, { order_by => ['frameworktext'] } )->as_list;
+                        my $default_source = '';
+                        push @authorised_values, $default_source;
+                        $authorised_lib{$default_source} = 'Default';
+                        foreach my $framework (@frameworks) {
+                            push @authorised_values, $framework->frameworkcode;
+                            $authorised_lib{ $framework->frameworkcode } = $framework->frameworktext;
+                        }
+                    } elsif ( $authorised_value eq "cn_source" ) {
+                        my $class_sources  = GetClassSources();
+                        my $default_source = C4::Context->preference("DefaultClassificationSource");
+                        foreach my $class_source ( sort keys %$class_sources ) {
+                            next
+                                unless $class_sources->{$class_source}->{'used'}
+                                or ( $class_source eq $default_source );
+                            push @authorised_values, $class_source;
+                            $authorised_lib{$class_source} = $class_sources->{$class_source}->{'description'};
+                        }
+                    } elsif ( $authorised_value eq "categorycode" ) {
+                        my @patron_categories =
+                            Koha::Patron::Categories->search( {}, { order_by => ['description'] } )->as_list;
+                        %authorised_lib = map { $_->categorycode => $_->description } @patron_categories;
+                        push @authorised_values, $_->categorycode for @patron_categories;
+                    } elsif ( $authorised_value eq "cash_registers" ) {
+                        my $sth = $dbh->prepare("SELECT id, name FROM cash_registers ORDER BY description");
+                        $sth->execute;
+                        while ( my ( $id, $name ) = $sth->fetchrow_array ) {
+                            push @authorised_values, $id;
+                            $authorised_lib{$id} = $name;
+                        }
+                    } elsif ( $authorised_value eq "debit_types" ) {
+                        my $sth = $dbh->prepare("SELECT code, description FROM account_debit_types ORDER BY code");
+                        $sth->execute;
+                        while ( my ( $code, $description ) = $sth->fetchrow_array ) {
+                            push @authorised_values, $code;
+                            $authorised_lib{$code} = $description;
+                        }
+                    } elsif ( $authorised_value eq "credit_types" ) {
+                        my $sth = $dbh->prepare("SELECT code, description FROM account_credit_types ORDER BY code");
+                        $sth->execute;
+                        while ( my ( $code, $description ) = $sth->fetchrow_array ) {
+                            push @authorised_values, $code;
+                            $authorised_lib{$code} = $description;
+                        }
                     } else {
-                        $uniq_params{ $text . $sep . $authorised_value_all } = "$i";
-                    }
-                    my ( $authorised_value, $param_options ) = split /:/, $authorised_value_all;
-                    my $all;
-                    my $multiple;
-                    if ( $param_options eq "all" ) {
-                        $all = "all";
-                    } elsif ( $param_options eq "in" ) {
-                        $multiple = "multiple";
-                    }
-                    my $input;
-                    my $labelid;
-                    if ( not defined $authorised_value ) {
-
-                        # no authorised value input, provide a text box
-                        $input = "text";
-                    } elsif ( $authorised_value eq "date" ) {
-
-                        # require a date, provide a date picker
-                        $input = 'date';
-                    } elsif ( $authorised_value eq "list" ) {
-
-                        # require a list, provide a textarea
-                        $input = 'textarea';
-                    } else {
-
-                        # defined $authorised_value, and not 'date'
-                        my $dbh = C4::Context->dbh;
-                        my @authorised_values;
-                        my %authorised_lib;
-
-                        # builds list, depending on authorised value...
-                        if ( $authorised_value eq "branches" ) {
-                            my $libraries = Koha::Libraries->search( {}, { order_by => ['branchname'] } );
-                            while ( my $library = $libraries->next ) {
-                                push @authorised_values, $library->branchcode;
-                                $authorised_lib{ $library->branchcode } = $library->branchname;
-                            }
-                        } elsif ( $authorised_value eq "itemtypes" ) {
-                            my $sth = $dbh->prepare("SELECT itemtype,description FROM itemtypes ORDER BY description");
-                            $sth->execute;
-                            while ( my ( $itemtype, $description ) = $sth->fetchrow_array ) {
-                                push @authorised_values, $itemtype;
-                                $authorised_lib{$itemtype} = $description;
-                            }
-                        } elsif ( $authorised_value eq "biblio_framework" ) {
-                            my @frameworks =
-                                Koha::BiblioFrameworks->search( {}, { order_by => ['frameworktext'] } )->as_list;
-                            my $default_source = '';
-                            push @authorised_values, $default_source;
-                            $authorised_lib{$default_source} = 'Default';
-                            foreach my $framework (@frameworks) {
-                                push @authorised_values, $framework->frameworkcode;
-                                $authorised_lib{ $framework->frameworkcode } = $framework->frameworktext;
-                            }
-                        } elsif ( $authorised_value eq "cn_source" ) {
-                            my $class_sources  = GetClassSources();
-                            my $default_source = C4::Context->preference("DefaultClassificationSource");
-                            foreach my $class_source ( sort keys %$class_sources ) {
-                                next
-                                    unless $class_sources->{$class_source}->{'used'}
-                                    or ( $class_source eq $default_source );
-                                push @authorised_values, $class_source;
-                                $authorised_lib{$class_source} = $class_sources->{$class_source}->{'description'};
-                            }
-                        } elsif ( $authorised_value eq "categorycode" ) {
-                            my @patron_categories =
-                                Koha::Patron::Categories->search( {}, { order_by => ['description'] } )->as_list;
-                            %authorised_lib = map { $_->categorycode => $_->description } @patron_categories;
-                            push @authorised_values, $_->categorycode for @patron_categories;
-                        } elsif ( $authorised_value eq "cash_registers" ) {
-                            my $sth = $dbh->prepare("SELECT id, name FROM cash_registers ORDER BY description");
-                            $sth->execute;
-                            while ( my ( $id, $name ) = $sth->fetchrow_array ) {
-                                push @authorised_values, $id;
-                                $authorised_lib{$id} = $name;
-                            }
-                        } elsif ( $authorised_value eq "debit_types" ) {
-                            my $sth = $dbh->prepare("SELECT code, description FROM account_debit_types ORDER BY code");
-                            $sth->execute;
-                            while ( my ( $code, $description ) = $sth->fetchrow_array ) {
-                                push @authorised_values, $code;
-                                $authorised_lib{$code} = $description;
-                            }
-                        } elsif ( $authorised_value eq "credit_types" ) {
-                            my $sth = $dbh->prepare("SELECT code, description FROM account_credit_types ORDER BY code");
-                            $sth->execute;
-                            while ( my ( $code, $description ) = $sth->fetchrow_array ) {
-                                push @authorised_values, $code;
-                                $authorised_lib{$code} = $description;
-                            }
-                        } else {
-                            if ( Koha::AuthorisedValues->search( { category => $authorised_value } )->count ) {
-                                my $query = '
+                        if ( Koha::AuthorisedValues->search( { category => $authorised_value } )->count ) {
+                            my $query = '
                             SELECT authorised_value,lib
                             FROM authorised_values
                             WHERE category=?
                             ORDER BY lib
                             ';
-                                my $authorised_values_sth = $dbh->prepare($query);
-                                $authorised_values_sth->execute($authorised_value);
+                            my $authorised_values_sth = $dbh->prepare($query);
+                            $authorised_values_sth->execute($authorised_value);
 
-                                while ( my ( $value, $lib ) = $authorised_values_sth->fetchrow_array ) {
-                                    push @authorised_values, $value;
-                                    $authorised_lib{$value} = $lib;
+                            while ( my ( $value, $lib ) = $authorised_values_sth->fetchrow_array ) {
+                                push @authorised_values, $value;
+                                $authorised_lib{$value} = $lib;
 
-                                    # For item location, we show the code and the libelle
-                                    $authorised_lib{$value} = $lib;
-                                }
-                            } else {
-
-                                # not exists $authorised_value_categories{$authorised_value})
-                                push @authval_errors, {
-                                    'entry'    => $text,
-                                    'auth_val' => $authorised_value
-                                };
-
-                                # tell the template there's an error
-                                $template->param( auth_val_error => 1 );
-
-                                # skip scrolling list creation and params push
-                                next;
+                                # For item location, we show the code and the libelle
+                                $authorised_lib{$value} = $lib;
                             }
-                        }
-                        $labelid = $text;
-                        $labelid =~ s/\W//g;
-                        $input = {
-                            name   => "sql_params",
-                            id     => "sql_params_" . $labelid,
-                            values => \@authorised_values,
-                            labels => \%authorised_lib,
-                        };
-                    }
+                        } else {
 
-                    push @tmpl_parameters,
-                        {
-                        'entry'           => $text, 'input' => $input, 'labelid' => $labelid,
-                        'name'            => $text . $sep . $authorised_value_all, 'include_all' => $all,
-                        'select_multiple' => $multiple
-                        };
+                            # not exists $authorised_value_categories{$authorised_value})
+                            push @authval_errors, {
+                                'entry'    => $text,
+                                'auth_val' => $authorised_value
+                            };
+
+                            # tell the template there's an error
+                            $template->param( auth_val_error => 1 );
+
+                            # skip scrolling list creation and params push
+                            next;
+                        }
+                    }
+                    $labelid = $text;
+                    $labelid =~ s/\W//g;
+                    $input = {
+                        name   => "sql_params",
+                        id     => "sql_params_" . $labelid,
+                        values => \@authorised_values,
+                        labels => \%authorised_lib,
+                    };
                 }
-                $template->param(
-                    'sql'             => $sql,
-                    'name'            => $name,
-                    'notes'           => $notes,
-                    'sql_params'      => \@tmpl_parameters,
-                    'auth_val_errors' => \@authval_errors,
-                    'enter_params'    => 1,
-                    'id'              => $report_id,
-                    'template_id'     => $template_id,
-                );
-            } else {
-                my ( $sql, $header_types ) = $report->prep_report( \@param_names, \@sql_params );
-                $template->param( header_types => $header_types );
-                my ( $sth, $errors ) = execute_query(
+
+                push @tmpl_parameters,
                     {
-                        sql       => $sql,
-                        offset    => $offset,
-                        limit     => $limit,
-                        report_id => $report_id,
-                    }
-                );
-                my $total;
-                if ( !$sth ) {
-                    push @errors, "Report could not be run " . $errors;
-                } elsif ( !$errors ) {
-                    $total = nb_rows($sql) || 0;
-                    my $headers = header_cell_loop($sth);
-                    $template->param( header_row => $headers );
-                    while ( my $row = $sth->fetchrow_arrayref() ) {
+                    'entry'           => $text, 'input' => $input, 'labelid' => $labelid,
+                    'name'            => $text . $sep . $authorised_value_all, 'include_all' => $all,
+                    'select_multiple' => $multiple
+                    };
+            }
+            $template->param(
+                'sql'             => $sql,
+                'name'            => $name,
+                'notes'           => $notes,
+                'sql_params'      => \@tmpl_parameters,
+                'auth_val_errors' => \@authval_errors,
+                'enter_params'    => 1,
+                'id'              => $report_id,
+                'template_id'     => $template_id,
+            );
+        } else {
+            my ( $sql, $header_types ) = $report->prep_report( \@param_names, \@sql_params );
+            $template->param( header_types => $header_types );
+            my ( $sth, $errors ) = execute_query(
+                {
+                    sql       => $sql,
+                    offset    => $offset,
+                    limit     => $limit,
+                    report_id => $report_id,
+                }
+            );
+            my $total;
+            if ( !$sth ) {
+                push @errors, "Report could not be run " . $errors;
+            } elsif ( !$errors ) {
+                $total = nb_rows($sql) || 0;
+                my $headers = header_cell_loop($sth);
+                $template->param( header_row => $headers );
+                while ( my $row = $sth->fetchrow_arrayref() ) {
+                    my @cells = map { +{ cell => $_ } } @$row;
+                    push @rows, { cells => \@cells };
+                }
+                if ($want_full_chart) {
+                    my ( $sth2, $errors2 ) = execute_query( { sql => $sql, report_id => $report_id } );
+                    while ( my $row = $sth2->fetchrow_arrayref() ) {
                         my @cells = map { +{ cell => $_ } } @$row;
-                        push @rows, { cells => \@cells };
+                        push @allrows, { cells => \@cells };
                     }
-                    if ($want_full_chart) {
-                        my ( $sth2, $errors2 ) = execute_query( { sql => $sql, report_id => $report_id } );
-                        while ( my $row = $sth2->fetchrow_arrayref() ) {
-                            my @cells = map { +{ cell => $_ } } @$row;
-                            push @allrows, { cells => \@cells };
-                        }
-                    }
+                }
 
-                    my $totpages = int( $total / $limit ) + ( ( $total % $limit ) > 0 ? 1 : 0 );
-                    my $url =
-                        "/cgi-bin/koha/reports/guided_reports.pl?id=$report_id&op=run&limit=$limit&want_full_chart=$want_full_chart";
-                    if (@param_names) {
-                        $url = join( '&param_name=', $url, map { URI::Escape::uri_escape_utf8($_) } @param_names );
-                    }
-                    if (@sql_params) {
-                        $url = join( '&sql_params=', $url, map { URI::Escape::uri_escape_utf8($_) } @sql_params );
-                    }
+                my $totpages = int( $total / $limit ) + ( ( $total % $limit ) > 0 ? 1 : 0 );
+                my $url =
+                    "/cgi-bin/koha/reports/guided_reports.pl?id=$report_id&op=run&limit=$limit&want_full_chart=$want_full_chart";
+                if (@param_names) {
+                    $url = join( '&param_name=', $url, map { URI::Escape::uri_escape_utf8($_) } @param_names );
+                }
+                if (@sql_params) {
+                    $url = join( '&sql_params=', $url, map { URI::Escape::uri_escape_utf8($_) } @sql_params );
+                }
 
-                    if ($template_id) {
-                        my $notice_template = Koha::Notice::Templates->find($template_id);
-                        my ( $sth2, $errors2 ) = execute_query( { sql => $sql, report_id => $report_id } );
-                        my $data = $sth2->fetchall_arrayref( {} );
-                        my $notice_rendered =
-                            process_tt( $notice_template->content, { data => $data, report_id => $report_id } );
-                        my $title_rendered =
-                            process_tt( $notice_template->title, { data => $data, report_id => $report_id } );
-                        $template->param(
-                            template_id            => $template_id,
-                            processed_notice       => $notice_rendered,
-                            processed_notice_title => $title_rendered,
-                        );
-                    }
-
+                if ($template_id) {
+                    my $notice_template = Koha::Notice::Templates->find($template_id);
+                    my ( $sth2, $errors2 ) = execute_query( { sql => $sql, report_id => $report_id } );
+                    my $data = $sth2->fetchall_arrayref( {} );
+                    my $notice_rendered =
+                        process_tt( $notice_template->content, { data => $data, report_id => $report_id } );
+                    my $title_rendered =
+                        process_tt( $notice_template->title, { data => $data, report_id => $report_id } );
                     $template->param(
-                        'results'         => \@rows,
-                        'allresults'      => \@allrows,
-                        'pagination_bar'  => pagination_bar( $url, $totpages, scalar $input->param('page') ),
-                        'unlimited_total' => $total,
+                        template_id            => $template_id,
+                        processed_notice       => $notice_rendered,
+                        processed_notice_title => $title_rendered,
                     );
                 }
+
                 $template->param(
-                    'sql'         => $sql,
-                    original_sql  => $original_sql,
-                    'id'          => $report_id,
-                    'execute'     => 1,
-                    'name'        => $name,
-                    'notes'       => $notes,
-                    'errors'      => defined($errors) ? [$errors] : undef,
-                    'sql_params'  => \@sql_params,
-                    'param_names' => \@param_names,
+                    'results'         => \@rows,
+                    'allresults'      => \@allrows,
+                    'pagination_bar'  => pagination_bar( $url, $totpages, scalar $input->param('page') ),
+                    'unlimited_total' => $total,
                 );
             }
+            $template->param(
+                'sql'         => $sql,
+                original_sql  => $original_sql,
+                'id'          => $report_id,
+                'execute'     => 1,
+                'name'        => $name,
+                'notes'       => $notes,
+                'errors'      => defined($errors) ? [$errors] : undef,
+                'sql_params'  => \@sql_params,
+                'param_names' => \@param_names,
+            );
         }
-    } else {
-        push @errors, { no_sql_for_id => $report_id };
     }
 }
 
@@ -1130,7 +1118,7 @@ if ( $op eq 'list' || $op eq 'convert' ) {
     my $subgroup          = $input->param('subgroup');
     my $show_all_filter   = $filter->{show_all_reports};
     my $logged_in_user    = Koha::Patrons->find($borrowernumber);
-    my $can_manage_limits = _can_manage_limits($logged_in_user);
+    my $can_manage_limits = Koha::Report->can_manage_limits($logged_in_user);
     $filter->{group}    = $group;
     $filter->{subgroup} = $subgroup;
 
@@ -1274,31 +1262,4 @@ sub create_non_existing_group_and_subgroup {
             }
         }
     }
-}
-
-sub _can_access_report {
-    my ( $report, $borrowernumber ) = @_;
-    my $logged_in_user    = Koha::Patrons->find($borrowernumber);
-    my $can_manage_limits = _can_manage_limits($logged_in_user);
-
-    return 1 unless C4::Context->preference('LimitReportsByBranch');
-
-    if ($can_manage_limits) {
-        return 1;
-    }
-
-    my $limits_rs = $report->get_library_limits;
-    return 1 unless $limits_rs;
-
-    my $user_branch = C4::Context::mybranch();
-    return 0 unless $user_branch;
-
-    my %allowed = map { $_->branchcode => 1 } $limits_rs->as_list;
-    return $allowed{$user_branch} ? 1 : 0;
-}
-
-sub _can_manage_limits {
-    my ($user) = @_;
-    return C4::Context->preference('LimitReportsByBranch')
-        && ( $user->is_superlibrarian || $user->has_permission( { reports => 'manage_report_limits' } ) );
 }

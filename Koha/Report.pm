@@ -22,6 +22,8 @@ use Koha::Reports;
 
 use Koha::Object;
 use Koha::Object::Limit::Library;
+use Koha::Patrons;
+use C4::Context;
 
 use base qw(Koha::Object Koha::Object::Limit::Library);
 
@@ -284,6 +286,45 @@ sub _library_limits {
         id      => "report_id",
         library => "branchcode",
     };
+}
+
+=head3 can_manage_limits
+
+    my $can = Koha::Report->can_manage_limits($patron);
+
+Returns true if branch limiting is enabled and the patron can manage report limits (superlibrarian or permission reports => manage_report_limits).
+
+=cut
+
+sub can_manage_limits {
+    my ( $class, $patron ) = @_;
+    return C4::Context->preference('LimitReportsByBranch')
+        && ( $patron->is_superlibrarian || $patron->has_permission( { reports => 'manage_report_limits' } ) );
+}
+
+=head3 can_access
+
+    my $allowed = $report->can_access($patron);
+
+Returns true if the patron may access this report considering branch limits, or if limits are disabled.
+
+=cut
+
+sub can_access {
+    my ( $self, $patron ) = @_;
+
+    return 1 unless C4::Context->preference('LimitReportsByBranch');
+
+    return 1 if __PACKAGE__->can_manage_limits($patron);
+
+    my $limits_rs = $self->get_library_limits;
+    return 1 unless $limits_rs;
+
+    my $user_branch = C4::Context::mybranch();
+    return 0 unless $user_branch;
+
+    my %allowed = map { $_->branchcode => 1 } $limits_rs->as_list;
+    return $allowed{$user_branch} ? 1 : 0;
 }
 
 1;
