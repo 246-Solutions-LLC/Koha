@@ -115,7 +115,12 @@ if ( $OP_REQUIRES_REPORT{$op} && $report_id ) {
         push @errors, { no_sql_for_id => $report_id };
     }
 }
-$op = '' if $access_blocked;
+
+if ($access_blocked) {
+    output_html_with_http_headers $input, $cookie, $template->output;
+    exit;
+}
+
 if ( !$op ) {
     $template->param( 'start' => 1 );
 

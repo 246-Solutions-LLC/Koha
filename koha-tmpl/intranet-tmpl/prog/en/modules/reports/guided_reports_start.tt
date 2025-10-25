@@ -203,8 +203,8 @@
                 [% INCLUDE "reports-toolbar.inc" %]
 
                 [% IF access_denied %]
-                    <div class="alert alert-danger">
-                        <h3>Access denied</h3>
+                    <div class="">
+                        <h1>Access denied</h1>
                         <p>This report is restricted and cannot be accessed by the current user.</p>
                         [% IF id %]<p>Report ID: [% id | html %]</p>[% END %]
                         <p><a class="btn btn-secondary" href="/cgi-bin/koha/reports/guided_reports.pl?op=list">Return to saved reports</a></p>
